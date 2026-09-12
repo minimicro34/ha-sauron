@@ -2,19 +2,7 @@ name: Validate
 
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
-  schedule:
-    - cron: "37 4 * * 1"
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: validate-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   quality:
@@ -22,13 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
-          cache: pip
+          python-version: "3.14"
 
       - name: Install test dependencies
         run: |
@@ -46,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Run hassfest
         uses: home-assistant/actions/hassfest@master
 
@@ -55,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Run HACS validation
         uses: hacs/action@main
         with:
