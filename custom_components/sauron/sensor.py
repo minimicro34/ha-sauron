@@ -125,7 +125,10 @@ class SauronSensor(SauronMeterEntity, SensorEntity):
     def __init__(
         self, coordinator: SauronCoordinator, description: SensorEntityDescription
     ) -> None:
-        super().__init__(coordinator, translation_key=description.translation_key or description.key)
+        super().__init__(
+            coordinator,
+            translation_key=description.translation_key or description.key,
+        )
         self.entity_description = description
 
     @property
