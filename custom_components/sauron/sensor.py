@@ -27,25 +27,12 @@ PARALLEL_UPDATES = 0
 
 METER_SENSORS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
-        key="last_index",
-        translation_key="last_index",
-        device_class=SensorDeviceClass.WATER,
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
-        suggested_display_precision=3,
-    ),
-    SensorEntityDescription(
         key="estimated_index",
         translation_key="estimated_index",
         device_class=SensorDeviceClass.WATER,
         state_class=SensorStateClass.TOTAL_INCREASING,
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         suggested_display_precision=3,
-    ),
-    SensorEntityDescription(
-        key="last_index_date",
-        translation_key="last_index_date",
-        device_class=SensorDeviceClass.DATE,
     ),
     SensorEntityDescription(
         key="daily_liters",
@@ -80,12 +67,52 @@ METER_SENSORS: tuple[SensorEntityDescription, ...] = (
         suggested_display_precision=3,
     ),
     SensorEntityDescription(
+        key="last_index",
+        translation_key="last_index",
+        device_class=SensorDeviceClass.WATER,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=3,
+    ),
+    SensorEntityDescription(
+        key="last_index_date",
+        translation_key="last_index_date",
+        device_class=SensorDeviceClass.DATE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
         key="data_freshness_hours",
         translation_key="data_freshness_hours",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTime.HOURS,
         entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=1,
+    ),
+    SensorEntityDescription(
+        key="meter_serial",
+        translation_key="meter_serial",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key="meter_brand",
+        translation_key="meter_brand",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key="meter_model",
+        translation_key="meter_model",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key="meter_diameter",
+        translation_key="meter_diameter",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key="telereleve_tech",
+        translation_key="telereleve_tech",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
 
@@ -102,7 +129,7 @@ class SauronSensor(SauronMeterEntity, SensorEntity):
         self.entity_description = description
 
     @property
-    def native_value(self) -> float | date | None:
+    def native_value(self) -> float | date | str | None:
         data = self.coordinator.data
         key = self.entity_description.key
 
@@ -124,6 +151,16 @@ class SauronSensor(SauronMeterEntity, SensorEntity):
             now = datetime.now(UTC)
             delta = now - data.latest_reading.fetched_at
             return round(delta.total_seconds() / 3600, 1)
+        if key == "meter_serial":
+            return data.meter_info.meter_serial
+        if key == "meter_brand":
+            return data.meter_info.meter_brand
+        if key == "meter_model":
+            return data.meter_info.meter_model
+        if key == "meter_diameter":
+            return data.meter_info.meter_diameter
+        if key == "telereleve_tech":
+            return data.meter_info.telereleve_tech
         return None
 
 
