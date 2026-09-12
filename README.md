@@ -13,19 +13,21 @@ Monitor your [SAUR](https://www.saur.fr) water consumption directly in Home Assi
 
 ## Features
 
-- **7 sensor entities** per meter subscription:
+- **8 sensor entities** per meter subscription:
 
 | Entity | Unit | Description |
 |---|---|---|
-| Water index | m³ | Absolute meter reading (feeds Energy Dashboard → Water) |
-| Last reading date | date | Date of the latest SAUR reading |
+| Water index | m³ | Latest physical meter reading reported by SAUR |
+| Estimated water index | m³ | Physical reading + daily consumption since that reading; recommended for Energy Dashboard → Water |
+| Last reading date | date | Date of the latest physical SAUR reading |
 | Daily consumption | L | Yesterday's usage |
 | Weekly consumption | m³ | Current week total |
 | Monthly consumption | m³ | Current month total |
 | Yearly consumption | m³ | Current year total |
 | Data age *(diagnostic)* | h | Hours since last API poll |
 
-- **Energy Dashboard** compatible — add `Water index` to **Settings → Energy → Water**
+- **Energy Dashboard** compatible — add `Estimated water index` to **Settings → Energy → Water**
+- **Automatic rebasing** — when SAUR publishes a new physical meter reading, the estimated index uses it as the new baseline and only accumulates consumption after that date
 - **Re-authentication flow** — seamless credential update without removing the integration
 - **Repair Issues** — HA alerts when data becomes stale (configurable threshold)
 - **Options flow** — configure polling interval and stale-data threshold at runtime
@@ -75,20 +77,22 @@ After setup, click **Configure** on the integration card to adjust:
 | Polling interval | 4 h | How often to query the SAUR API |
 | Stale data threshold | 36 h | Hours before a Repair Issue is raised |
 
-> SAUR updates meter data once per day (J−1). Polling more often than every 4 hours is not useful.
+> SAUR updates consumption data once per day (J−1). Polling more often than every 4 hours is rarely useful.
 
 ---
 
 ## Energy Dashboard
 
-Add the **Water index** sensor to the HA Energy Dashboard:
+Add the **Estimated water index** sensor to the HA Energy Dashboard:
 
 1. Go to **Settings → Energy**
 2. Under **Water**, click **Add water source**
-3. Select `sensor.saur_water_meter_water_index`
+3. Select `sensor.saur_water_meter_estimated_water_index`
 4. Save
 
-HA will automatically track cumulative water consumption over time.
+The estimated index starts from SAUR's latest physical meter reading and adds the daily consumption entries published after that reading date. When a technician visit produces a newer physical reading, that reading automatically becomes the new baseline; consumption on and before the new reading date is no longer part of the estimate.
+
+The original **Water index** sensor remains available unchanged and always exposes the latest physical reading returned by SAUR.
 
 ### utility_meter (optional)
 
@@ -98,10 +102,10 @@ For daily/weekly/monthly resets independent of the SAUR API:
 # configuration.yaml
 utility_meter:
   water_daily:
-    source: sensor.saur_water_meter_water_index
+    source: sensor.saur_water_meter_estimated_water_index
     cycle: daily
   water_monthly:
-    source: sensor.saur_water_meter_water_index
+    source: sensor.saur_water_meter_estimated_water_index
     cycle: monthly
 ```
 
@@ -109,9 +113,9 @@ utility_meter:
 
 ## Data freshness
 
-SAUR transmits meter readings once per day, typically between midnight and 6 AM.
-The `Daily consumption` sensor will show **Unknown** until the reading for J−1 arrives.
-This is expected behaviour — not a bug.
+SAUR publishes consumption data once per day, typically for J−1.
+The `Daily consumption` sensor will show **Unknown** until a daily value is available.
+The physical `Water index` may be updated much less frequently than daily consumption; this is why the integration exposes the separate cumulative `Estimated water index` sensor.
 
 ---
 
@@ -126,8 +130,12 @@ This is expected behaviour — not a bug.
 - Check your internet connection and retry
 
 **Sensors show "Unknown" after install**
-- SAUR data updates once per day — wait up to 24 hours for the first readings
+- SAUR consumption data updates once per day — wait up to 24 hours for the first readings
 - Check the HA logs for debug output: enable `custom_components.sauron: debug` in your `logger:` config
+
+**Estimated water index shows "Unknown"**
+- SAURon could not retrieve or validate one of the monthly consumption payloads required since the last physical reading
+- The physical `Water index` and the other consumption sensors remain independent of this reconstruction
 
 **Stale data alert in Repairs**
 - Your meter may not be transmitting (check the SAUR portal)
@@ -138,6 +146,7 @@ This is expected behaviour — not a bug.
 ## Technical notes
 
 - The SAUR mobile API accepts `captchaToken: "true"` as a literal string — no browser automation or real reCAPTCHA solving is required
+- The estimated cumulative index is reconstructed from monthly API responses containing daily `Day` entries; the day of the physical reading itself is excluded to avoid double counting
 - No external Python library dependency — uses HA's bundled `aiohttp`
 - All credentials are stored in HA's config entry and never sent to third parties
 
