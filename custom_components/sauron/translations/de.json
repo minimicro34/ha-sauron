@@ -51,6 +51,7 @@
   "entity": {
     "sensor": {
       "last_index": { "name": "Wasserstand" },
+      "estimated_index": { "name": "Geschätzter Wasserzählerstand" },
       "last_index_date": { "name": "Datum letzte Ablesung" },
       "daily_liters": { "name": "Gestern Verbrauch" },
       "weekly_m3": { "name": "Aktuelle Woche" },
