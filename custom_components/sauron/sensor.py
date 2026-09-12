@@ -35,6 +35,14 @@ METER_SENSORS: tuple[SensorEntityDescription, ...] = (
         suggested_display_precision=3,
     ),
     SensorEntityDescription(
+        key="estimated_index",
+        translation_key="estimated_index",
+        device_class=SensorDeviceClass.WATER,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
+        suggested_display_precision=3,
+    ),
+    SensorEntityDescription(
         key="last_index_date",
         translation_key="last_index_date",
         device_class=SensorDeviceClass.DATE,
@@ -100,6 +108,8 @@ class SauronSensor(SauronMeterEntity, SensorEntity):
 
         if key == "last_index":
             return data.latest_reading.value_m3
+        if key == "estimated_index":
+            return data.estimated_index_m3
         if key == "last_index_date":
             return data.latest_reading.reading_date
         if key == "daily_liters":
