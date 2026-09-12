@@ -23,18 +23,28 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 
 ## Features
 
-- **8 sensor entities** per meter subscription:
+- **5 primary sensor entities** per meter subscription:
 
 | Entity | Unit | Description |
 |---|---|---|
-| Water index | m³ | Latest physical meter reading reported by SAUR |
 | Estimated water index | m³ | Physical reading + daily consumption since that reading; recommended for Energy Dashboard → Water |
-| Last reading date | date | Date of the latest physical SAUR reading |
 | Daily consumption | L | Latest daily consumption (normally J−1) |
 | Weekly consumption | m³ | Current week total reported by SAUR |
 | Monthly consumption | m³ | Current month total reported by SAUR |
 | Yearly consumption | m³ | Current year total reported by SAUR |
-| Data age *(diagnostic)* | h | Hours since the latest successful API poll |
+
+- **8 diagnostic sensor entities**, grouped by Home Assistant in the device's **Diagnostic** section:
+
+| Diagnostic entity | Unit | Description |
+|---|---|---|
+| Water index | m³ | Latest physical meter reading reported by SAUR |
+| Last reading date | date | Date of the latest physical SAUR reading |
+| Data age | h | Hours since the latest successful API poll |
+| Meter serial number | — | Physical meter serial number |
+| Meter manufacturer | — | Meter manufacturer reported by SAUR |
+| Meter model | — | Meter model reported by SAUR |
+| Meter diameter | — | Meter diameter reported by SAUR |
+| Remote reading technology | — | SAUR remote-reading technology |
 
 - **Energy Dashboard compatible** — use `Estimated water index` as the water source.
 - **Automatic rebasing** — when SAUR publishes a new physical meter reading, it becomes the new baseline automatically.
