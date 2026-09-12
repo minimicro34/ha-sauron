@@ -5,11 +5,9 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import asdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import SauronApiClient, TokenCache
@@ -22,6 +20,10 @@ from .const import (
     TOKEN_REFRESH_MARGIN_S,
 )
 from .coordinator import SauronCoordinator
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
