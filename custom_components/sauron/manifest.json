@@ -2,18 +2,19 @@
   "domain": "sauron",
   "name": "SAURon",
   "codeowners": [
-    "@netnic0"
+    "@netnic0",
+    "@minimicro34"
   ],
   "config_flow": true,
-  "documentation": "https://github.com/netnic0/ha-sauron",
+  "documentation": "https://github.com/minimicro34/ha-sauron",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/netnic0/ha-sauron/issues",
+  "issue_tracker": "https://github.com/minimicro34/ha-sauron/issues",
   "loggers": [
     "custom_components.sauron"
   ],
   "quality_scale": "bronze",
   "requirements": [],
   "single_config_entry": false,
-  "version": "0.4.1"
+  "version": "0.5.0"
 }
