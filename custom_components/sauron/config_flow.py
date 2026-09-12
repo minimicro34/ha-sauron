@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import aiohttp
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -28,6 +27,10 @@ from .const import (
     OPT_STALE_DATA_THRESHOLD_H_MIN,
 )
 
+if TYPE_CHECKING:
+    import aiohttp
+    from homeassistant.config_entries import ConfigEntry
+
 _LOGGER = logging.getLogger(__name__)
 
 _STEP_USER_SCHEMA = vol.Schema(
@@ -41,19 +44,7 @@ _STEP_USER_SCHEMA = vol.Schema(
 async def _probe_saur(
     session: aiohttp.ClientSession, login: str, password: str
 ) -> tuple[str, str]:
-    """Authenticate and discover (client_id, section_subscription_id).
-
-    Authentication response provides:
-      { "token": { "access_token": "..." }, "clientId": "...", "defaultSectionId": "..." }
-
-    We use defaultSectionId directly as the subscription_id to avoid an extra
-    API call during setup. If not present, we fall back to fetching
-    /admin/users/v2/website_areas/{client_id} and picking the first
-    sectionSubscriptionId found.
-
-    Returns (client_id, subscription_id) on success.
-    Raises SauronAuthError or SauronApiError on failure.
-    """
+    """Authenticate and discover (client_id, section_subscription_id)."""
     client = SauronApiClient(session, login, password)
     await client.async_authenticate()
 
@@ -61,20 +52,18 @@ async def _probe_saur(
     if not client_id:
         raise SauronApiError(0, "clientId missing from auth response")
 
-    # Fast path: defaultSectionId is available directly from the auth response
     subscription_id = client.default_section_id or ""
     if subscription_id:
         _LOGGER.debug("SAURon: using defaultSectionId=%s from auth", subscription_id)
         return client_id, subscription_id
 
-    # Slow path: fetch website_areas to find the first subscription
     _LOGGER.debug("SAURon: defaultSectionId absent, fetching website_areas")
     try:
         areas = await client.async_get_website_areas(client_id)
     except (SauronApiError, SauronNoDataError) as err:
         raise SauronApiError(0, f"Could not discover subscriptions: {err}") from err
 
-    # Response: {"clients": [{"customerAccounts": [{"sectionSubscriptions": [{"sectionSubscriptionId": "..."}]}]}]}
+    # Response nesting: clients -> customerAccounts -> sectionSubscriptions.
     for cli in areas.get("clients", []):
         for account in cli.get("customerAccounts", []):
             for sub in account.get("sectionSubscriptions", []):
