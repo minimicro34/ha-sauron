@@ -51,6 +51,7 @@
   "entity": {
     "sensor": {
       "last_index": { "name": "Water index" },
+      "estimated_index": { "name": "Estimated water index" },
       "last_index_date": { "name": "Last reading date" },
       "daily_liters": { "name": "Yesterday consumption" },
       "weekly_m3": { "name": "Current week consumption" },
