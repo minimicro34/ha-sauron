@@ -79,7 +79,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         now = datetime.now(UTC)
         yesterday = now.date() - timedelta(days=1)
 
-        # Primary: latest meter index
+        # Primary: latest physical meter index.
         try:
             raw_index = await self._client.async_get_meter_last_index(subscription_id)
         except SauronAuthError as err:
@@ -94,9 +94,19 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
 
         data = _parse_last_index(subscription_id, raw_index, now, self._meter_info)
 
+        # Build a cumulative estimated index from the latest physical reading.
+        # When SAUR publishes a newer physical reading (typically after a technician
+        # visit), that new value/date automatically becomes the baseline and the
+        # accumulated consumption starts again strictly after that reading date.
+        estimated_index_m3 = await self._async_estimated_index(
+            subscription_id,
+            data.latest_reading,
+            yesterday,
+        )
+
         # Enrich: monthly response — single call covers daily, weekly, and monthly sensors.
         # SAUR /consumptions/monthly returns every day of the month as a Day entry,
-        # pre-populated with value=0 for future days.  We derive:
+        # pre-populated with value=0 for future days. We derive:
         #   daily_liters  — last Day entry with value > 0
         #   weekly_m3     — sum of Day entries whose startDate falls in the current ISO week
         #   monthly_m3    — sum of all non-zero Day entries
@@ -107,19 +117,18 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             raw_monthly = await self._client.async_get_monthly(
                 subscription_id, now.year, now.month
             )
-            # Fallback: if current month has no data (start of month), try previous month
             if not _has_nonzero_day(raw_monthly):
-                prev = (now.replace(day=1) - timedelta(days=1))
+                prev = now.replace(day=1) - timedelta(days=1)
                 raw_monthly = await self._client.async_get_monthly(
                     subscription_id, prev.year, prev.month
                 )
         except SauronAuthError as err:
             raise ConfigEntryAuthFailed from err
         except SauronTransientError as err:
-            # Enrichment is non-fatal: log and continue with primary data only.
             _LOGGER.warning(
                 "SAUR monthly transient error for %s: %s — skipping enrichment",
-                subscription_id, err,
+                subscription_id,
+                err,
             )
         except Exception as err:
             _LOGGER.warning("Could not fetch monthly data for %s: %s", subscription_id, err)
@@ -128,7 +137,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         weekly_m3 = _extract_week_total_from_monthly(raw_monthly, yesterday)
         monthly_m3 = _extract_period_m3(raw_monthly)
 
-        # Enrich: yearly consumption
+        # Enrich: yearly consumption.
         yearly_m3: float | None = None
         try:
             raw_yearly = await self._client.async_get_yearly(subscription_id, now.year)
@@ -138,7 +147,8 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         except SauronTransientError as err:
             _LOGGER.debug(
                 "SAUR yearly transient error for %s: %s — skipping yearly enrichment",
-                subscription_id, err,
+                subscription_id,
+                err,
             )
         except Exception as err:
             _LOGGER.debug("Could not fetch yearly data for %s: %s", subscription_id, err)
@@ -146,13 +156,14 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         enriched = SauronData(
             meter_info=data.meter_info,
             latest_reading=data.latest_reading,
+            estimated_index_m3=estimated_index_m3,
             daily_liters=daily_liters,
             weekly_m3=weekly_m3,
             monthly_m3=monthly_m3,
             yearly_m3=yearly_m3,
         )
 
-        # Manage stale-data Repair Issue
+        # Manage stale-data Repair Issue.
         reading_age_h = (
             (now.date() - enriched.latest_reading.reading_date).days * 24
             + now.hour
@@ -177,9 +188,64 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
 
         return enriched
 
+    async def _async_estimated_index(
+        self,
+        subscription_id: str,
+        reading: MeterReading,
+        through_date: date,
+    ) -> float | None:
+        """Estimate the current cumulative index from daily SAUR consumption data."""
+        if through_date <= reading.reading_date:
+            return round(reading.value_m3, 3)
+
+        monthly_payloads: list[dict[str, Any]] = []
+        for year, month in _iter_months(reading.reading_date, through_date):
+            try:
+                payload = await self._client.async_get_monthly(
+                    subscription_id, year, month
+                )
+            except SauronAuthError as err:
+                raise ConfigEntryAuthFailed from err
+            except SauronTransientError as err:
+                _LOGGER.warning(
+                    "Could not build estimated water index for %s: monthly data "
+                    "%04d-%02d is temporarily unavailable: %s",
+                    subscription_id,
+                    year,
+                    month,
+                    err,
+                )
+                return None
+            except Exception as err:
+                _LOGGER.warning(
+                    "Could not build estimated water index for %s: monthly data "
+                    "%04d-%02d failed: %s",
+                    subscription_id,
+                    year,
+                    month,
+                    err,
+                )
+                return None
+            monthly_payloads.append(payload)
+
+        estimated = _estimate_index_from_monthly(
+            reading.value_m3,
+            reading.reading_date,
+            through_date,
+            monthly_payloads,
+        )
+        if estimated is None:
+            _LOGGER.warning(
+                "Could not build estimated water index for %s: incomplete monthly payload",
+                subscription_id,
+            )
+        return estimated
+
 
 def _parse_last_index(
-    subscription_id: str, raw: dict[str, Any], fetched_at: datetime,
+    subscription_id: str,
+    raw: dict[str, Any],
+    fetched_at: datetime,
     meter_info: MeterInfo | None = None,
 ) -> SauronData:
     """Parse GET /meter_indexes/last response.
@@ -261,6 +327,63 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _iter_months(start_date: date, end_date: date) -> list[tuple[int, int]]:
+    """Return calendar months intersecting the inclusive date range."""
+    if end_date < start_date:
+        return []
+
+    year = start_date.year
+    month = start_date.month
+    result: list[tuple[int, int]] = []
+    while (year, month) <= (end_date.year, end_date.month):
+        result.append((year, month))
+        if month == 12:
+            year += 1
+            month = 1
+        else:
+            month += 1
+    return result
+
+
+def _estimate_index_from_monthly(
+    physical_index_m3: float,
+    reading_date: date,
+    through_date: date,
+    monthly_payloads: list[dict[str, Any]],
+) -> float | None:
+    """Add daily consumption after a physical reading to its absolute index.
+
+    The physical reading day itself is deliberately excluded because the reading
+    already represents the meter state on that date. Only Day entries strictly
+    after ``reading_date`` and up to ``through_date`` are accumulated.
+    """
+    if through_date <= reading_date:
+        return round(physical_index_m3, 3)
+
+    total_m3 = 0.0
+    for raw in monthly_payloads:
+        consumptions = raw.get("consumptions")
+        if not isinstance(consumptions, list):
+            return None
+
+        for item in consumptions:
+            if not isinstance(item, dict) or item.get("rangeType") != "Day":
+                continue
+
+            try:
+                entry_date = date.fromisoformat(str(item.get("startDate", ""))[:10])
+                value_m3 = float(item.get("value"))
+            except (TypeError, ValueError):
+                return None
+
+            if value_m3 < 0:
+                return None
+            if reading_date < entry_date <= through_date:
+                total_m3 += value_m3
+
+    return round(physical_index_m3 + total_m3, 3)
+
+
 def _has_nonzero_day(raw: dict[str, Any]) -> bool:
     """Return True if the response contains at least one Day entry with value > 0."""
     return any(
@@ -283,8 +406,10 @@ def _extract_daily_liters(raw: dict[str, Any]) -> float | None:
         return None
 
     day_entries = [
-        c for c in consumptions
-        if isinstance(c, dict) and c.get("rangeType") == "Day"
+        c
+        for c in consumptions
+        if isinstance(c, dict)
+        and c.get("rangeType") == "Day"
         and _safe_float(c.get("value")) > 0
     ]
     if not day_entries:
@@ -338,8 +463,10 @@ def _extract_week_total_m3(raw: dict[str, Any]) -> float | None:
         return None
 
     day_entries = [
-        c for c in consumptions
-        if isinstance(c, dict) and c.get("rangeType") == "Day"
+        c
+        for c in consumptions
+        if isinstance(c, dict)
+        and c.get("rangeType") == "Day"
         and _safe_float(c.get("value")) > 0
     ]
     if not day_entries:
@@ -357,7 +484,6 @@ def _extract_period_m3(raw: dict[str, Any]) -> float | None:
     """
     consumptions = raw.get("consumptions", [])
     if not isinstance(consumptions, list) or not consumptions:
-        # Single-value response fallback
         value = raw.get("value") or raw.get("total") or raw.get("volume")
         if value is not None and float(value) >= 0:
             return round(float(value), 3)
@@ -372,7 +498,9 @@ def _extract_period_m3(raw: dict[str, Any]) -> float | None:
 
 
 def _parse_consumption(
-    subscription_id: str, raw: dict[str, Any] | list[Any], fetched_at: datetime
+    subscription_id: str,
+    raw: dict[str, Any] | list[Any],
+    fetched_at: datetime,
 ) -> SauronData:
     """Legacy parser kept for test backward-compat. See _parse_last_index for current usage."""
     daily_liters: float | None = None

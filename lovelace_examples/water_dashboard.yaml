@@ -1,47 +1,28 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# SAURon — Tableau de bord consommation eau (blueprint Mushroom + ApexCharts)
-# ─────────────────────────────────────────────────────────────────────────────
+# SAURon — Exemple de tableau de bord eau
 #
-# Required HACS frontend plugins:
-#   - mushroom          https://github.com/piitaya/lovelace-mushroom
-#   - apexcharts-card   https://github.com/RomRider/apexcharts-card
-#   - card-mod          https://github.com/thomasloven/lovelace-card-mod
+# Prerequis HACS frontend :
+#   - Mushroom
+#   - ApexCharts Card
 #
-# Comment enlever:
-#   1. Copiez le bloc `views:` ci-dessous dans votre `lovelace.yaml`
-#      (ou collez-le comme nouveau tableau de bord via
-#      Parametres -> Tableaux de bord -> + Ajouter -> Depuis YAML).
-#   2. Remplacez les placeholders de la table suivante :
+# Noms d'entites ci-dessous : installation Home Assistant en francais.
+# Adaptez-les si Home Assistant a genere des entity_id differents.
 #
-#      Placeholder          Exemple                   Ou le trouver
-#      ─────────────────    ─────────────────────     ──────────────────────────
-#      <METER_ENTITY_ID>    saur_water_meter          Outils developpeur -> Etats,
-#                                                     prefixe commun de vos entites
-#                                                     (sans le "sensor.")
+# SAURon :
+#   sensor.saur_water_meter_index_eau_estime          index cumulatif reconstruit
+#   sensor.saur_water_meter_index_eau                 dernier index physique SAUR
+#   sensor.saur_water_meter_date_dernier_releve       date du releve physique
+#   sensor.saur_water_meter_consommation_journaliere  J-1 en litres
+#   sensor.saur_water_meter_consommation_hebdomadaire semaine en cours
+#   sensor.saur_water_meter_consommation_mensuelle    mois en cours
+#   sensor.saur_water_meter_consommation_annuelle     annee en cours
+#   sensor.saur_water_meter_age_des_donnees           diagnostic
 #
-#   NOTA : si votre HA est en francais, les entity_id sont generes depuis les
-#   noms traduits. Les entites attendues par ce blueprint sont :
+# utility_meter optionnels :
+#   sensor.water_daily
+#   sensor.water_monthly
 #
-#     sensor.saur_water_meter_index_eau              Index absolu (m3)
-#     sensor.saur_water_meter_date_dernier_releve    Date du dernier releve
-#     sensor.saur_water_meter_consommation_journaliere       Consommation J-1 (litres)
-#     sensor.saur_water_meter_consommation_hebdomadaire  Semaine en cours (m3)
-#     sensor.saur_water_meter_consommation_mensuelle Mois en cours (m3)
-#     sensor.saur_water_meter_consommation_annuelle  Annee en cours (m3)
-#     sensor.saur_water_meter_age_des_donnees        Age des donnees (heures, diagnostic)
-#
-#   Si votre HA est en anglais, les entity_id sont differents (ex. "water_index").
-#   Adaptez les references ci-dessous en consequence.
-#
-#   Capteurs utility_meter optionnels (configuration.yaml) :
-#     sensor.water_daily    — remise a zero quotidienne depuis l'index
-#     sensor.water_monthly  — remise a zero mensuelle depuis l'index
-#   Ces capteurs sont enveloppes dans des cartes conditionnelles : ils
-#   disparaissent automatiquement s'ils ne sont pas disponibles.
-#
-#   3. Rechargez Lovelace (Outils developpeur -> YAML -> Recharger les ressources).
-#
-# ─────────────────────────────────────────────────────────────────────────────
+# IMPORTANT : l'index physique SAUR ne change qu'au passage du technicien.
+# Les graphiques et utility_meter doivent donc utiliser l'index estime.
 
 title: Eau
 views:
@@ -51,144 +32,76 @@ views:
     type: sections
     max_columns: 4
     sections:
-
-      # ═══════════════════════════════════════════════════════════════════════
-      # SECTION 1 — En-tete / titre
-      # ═══════════════════════════════════════════════════════════════════════
       - type: grid
         column_span: 4
         cards:
           - type: custom:mushroom-title-card
             title: "Consommation d'eau"
-            subtitle: "SAUR · Compteur intelligent"
-            title_tap_action:
-              action: none
-            card_mod:
-              style: |
-                ha-card {
-                  --title-font-size: 2rem;
-                  --subtitle-font-size: 1rem;
-                }
+            subtitle: "SAUR · suivi du compteur"
 
-          # Chips de statut rapide
           - type: custom:mushroom-chips-card
             alignment: center
             chips:
-              # Index brut
               - type: entity
-                entity: sensor.saur_water_meter_index_eau
+                entity: sensor.saur_water_meter_index_eau_estime
                 icon: mdi:counter
-                icon_color: blue
                 tap_action:
                   action: more-info
-
-              # Consommation J-1
               - type: entity
                 entity: sensor.saur_water_meter_consommation_journaliere
                 icon: mdi:water-outline
-                icon_color: cyan
+                tap_action:
+                  action: more-info
+              - type: entity
+                entity: sensor.saur_water_meter_age_des_donnees
+                icon: mdi:clock-outline
                 tap_action:
                   action: more-info
 
-              # Alerte donnees obsoletes : visible uniquement si l'age > 25h
-              - type: conditional
-                conditions:
-                  - condition: state
-                    entity: sensor.saur_water_meter_age_des_donnees
-                    state_not: unavailable
-                chip:
-                  type: template
-                  icon: mdi:clock-alert-outline
-                  icon_color: >-
-                    {% if states('sensor.saur_water_meter_age_des_donnees') | float(0) > 25 %}
-                      red
-                    {% else %}
-                      green
-                    {% endif %}
-                  content: >-
-                    {% set h = states('sensor.saur_water_meter_age_des_donnees') | float(0) %}
-                    {% if h < 1 %}< 1 h{% else %}{{ h | round(0) }} h{% endif %}
-                  tap_action:
-                    action: more-info
-                    entity: sensor.saur_water_meter_age_des_donnees
-
-      # ═══════════════════════════════════════════════════════════════════════
-      # SECTION 2 — Indicateurs cles (KPI)
-      # ═══════════════════════════════════════════════════════════════════════
       - type: grid
         column_span: 4
         cards:
           - type: heading
-            heading: "Indicateurs de consommation"
+            heading: "Consommation"
             heading_style: title
             icon: mdi:chart-bar
 
-          # J-1 en litres
           - type: custom:mushroom-entity-card
             entity: sensor.saur_water_meter_consommation_journaliere
             name: "Hier (J-1)"
             icon: mdi:water-outline
-            icon_color: cyan
-            primary_info: state
-            secondary_info: name
-            tap_action:
-              action: more-info
             layout: vertical
 
-          # Semaine courante en m3
           - type: custom:mushroom-entity-card
             entity: sensor.saur_water_meter_consommation_hebdomadaire
             name: "Cette semaine"
             icon: mdi:calendar-week
-            icon_color: blue
-            primary_info: state
-            secondary_info: name
-            tap_action:
-              action: more-info
             layout: vertical
 
-          # Mois en cours en m3
           - type: custom:mushroom-entity-card
             entity: sensor.saur_water_meter_consommation_mensuelle
             name: "Ce mois"
             icon: mdi:calendar-month
-            icon_color: indigo
-            primary_info: state
-            secondary_info: name
-            tap_action:
-              action: more-info
             layout: vertical
 
-          # Annee en cours en m3
           - type: custom:mushroom-entity-card
             entity: sensor.saur_water_meter_consommation_annuelle
             name: "Cette annee"
             icon: mdi:calendar-year
-            icon_color: deep-purple
-            primary_info: state
-            secondary_info: name
-            tap_action:
-              action: more-info
             layout: vertical
 
-      # ═══════════════════════════════════════════════════════════════════════
-      # SECTION 3 — Graphique semaine : consommation journaliere (barres)
-      # Technique : on calcule le delta quotidien de l'index via func=diff.
-      # L'index est TOTAL_INCREASING donc diff() donne la consommation nette
-      # de chaque jour complet. group_by: day garantit 1 barre par jour.
-      # ═══════════════════════════════════════════════════════════════════════
       - type: grid
         column_span: 4
         cards:
           - type: heading
-            heading: "Consommation journaliere — 7 derniers jours"
+            heading: "7 derniers jours"
             heading_style: title
             icon: mdi:chart-bar
 
           - type: custom:apexcharts-card
             header:
               show: true
-              title: "m³ / jour (index SAUR)"
+              title: "Consommation quotidienne"
               show_states: false
             graph_span: 7d
             span:
@@ -197,46 +110,12 @@ views:
               chart:
                 type: bar
                 height: 280
-                toolbar:
-                  show: false
-              plotOptions:
-                bar:
-                  borderRadius: 4
-                  columnWidth: 60%
-              dataLabels:
-                enabled: true
-                formatter: |
-                  EVAL:function(val) {
-                    if (val === null || val === undefined) return '';
-                    return parseFloat(val).toFixed(3) + ' m³';
-                  }
-                style:
-                  fontSize: "11px"
-              colors:
-                - "#1E88E5"
-              xaxis:
-                type: datetime
-                labels:
-                  format: "ddd d"
               yaxis:
-                labels:
-                  formatter: |
-                    EVAL:function(val) {
-                      return parseFloat(val).toFixed(3) + ' m³';
-                    }
-              tooltip:
-                x:
-                  format: "EEEE d MMM"
-                y:
-                  formatter: |
-                    EVAL:function(val) {
-                      if (val === null || val === undefined) return 'Inconnu';
-                      return parseFloat(val).toFixed(3) + ' m³';
-                    }
+                min: 0
             series:
-              - entity: sensor.saur_water_meter_index_eau
+              - entity: sensor.saur_water_meter_index_eau_estime
                 name: "Consommation"
-                color: "#1E88E5"
+                type: column
                 group_by:
                   func: diff
                   duration: 1d
@@ -244,92 +123,36 @@ views:
                 show:
                   legend_value: false
 
-      # ═══════════════════════════════════════════════════════════════════════
-      # SECTION 4 — Tendance 30 jours : courbe de consommation quotidienne
-      # Meme approche diff() sur l'index, sur 30 jours glissants.
-      # ═══════════════════════════════════════════════════════════════════════
       - type: grid
         column_span: 4
         cards:
           - type: heading
-            heading: "Tendance mensuelle — 30 derniers jours"
+            heading: "30 derniers jours"
             heading_style: title
             icon: mdi:chart-line
 
           - type: custom:apexcharts-card
             header:
               show: true
-              title: "Consommation quotidienne (m³/jour) — 30 j"
-              show_states: true
-              colorize_states: true
+              title: "Tendance quotidienne"
+              show_states: false
             graph_span: 30d
             span:
               end: day
             apex_config:
               chart:
                 type: area
-                height: 260
-                toolbar:
-                  show: false
-              fill:
-                type: gradient
-                gradient:
-                  shadeIntensity: 0.5
-                  opacityFrom: 0.4
-                  opacityTo: 0.05
-              stroke:
-                curve: smooth
-                width: 2
-              markers:
-                size: 3
-              colors:
-                - "#29B6F6"
-              xaxis:
-                type: datetime
-                labels:
-                  format: "d MMM"
+                height: 280
               yaxis:
                 min: 0
-                labels:
-                  formatter: |
-                    EVAL:function(val) {
-                      return parseFloat(val).toFixed(3) + ' m³';
-                    }
-              tooltip:
-                x:
-                  format: "EEEE d MMM yyyy"
-                y:
-                  formatter: |
-                    EVAL:function(val) {
-                      if (val === null || val === undefined) return 'Inconnu';
-                      return parseFloat(val).toFixed(3) + ' m³';
-                    }
-              annotations:
-                yaxis:
-                  - y: 0.2
-                    borderColor: "#FFA726"
-                    borderWidth: 1
-                    strokeDashArray: 4
-                    label:
-                      text: "Ref. 0.200 m³"
-                      style:
-                        color: "#FFA726"
-                        fontSize: "11px"
             series:
-              - entity: sensor.saur_water_meter_index_eau
+              - entity: sensor.saur_water_meter_index_eau_estime
                 name: "Consommation"
-                color: "#29B6F6"
                 group_by:
                   func: diff
                   duration: 1d
                   fill: last
-                show:
-                  legend_value: true
-                  name_in_header: true
 
-      # ═══════════════════════════════════════════════════════════════════════
-      # SECTION 5 — Index compteur + date de releve
-      # ═══════════════════════════════════════════════════════════════════════
       - type: grid
         column_span: 2
         cards:
@@ -338,54 +161,30 @@ views:
             heading_style: title
             icon: mdi:gauge
 
-          # Index absolu du compteur
           - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_index_eau
-            name: "Index compteur"
+            entity: sensor.saur_water_meter_index_eau_estime
+            name: "Index estime"
             icon: mdi:counter
-            icon_color: blue
-            primary_info: state
-            secondary_info: last-updated
-            tap_action:
-              action: more-info
-            layout: horizontal
-            card_mod:
-              style: |
-                ha-card {
-                  --ha-card-border-radius: 12px;
-                }
-                :host {
-                  --primary-text-color: var(--primary-color);
-                  font-weight: bold;
-                }
-
-          # Date du dernier releve officiel SAUR
-          - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_date_dernier_releve
-            name: "Date de releve"
-            icon: mdi:calendar-check
-            icon_color: teal
             primary_info: state
             secondary_info: name
             tap_action:
               action: more-info
-            layout: horizontal
 
-      # ═══════════════════════════════════════════════════════════════════════
-      # SECTION 6 — Capteurs utility_meter optionnels (configuration.yaml)
-      # Ces cartes sont masquees si les entites n'existent pas ou sont
-      # indisponibles (state: unavailable).
-      # ═══════════════════════════════════════════════════════════════════════
+          - type: custom:mushroom-entity-card
+            entity: sensor.saur_water_meter_consommation_journaliere
+            name: "Derniere consommation"
+            icon: mdi:water
+            primary_info: state
+            secondary_info: name
+
       - type: grid
         column_span: 2
         cards:
-          # Remove this section if you have not configured utility_meter in configuration.yaml
           - type: heading
-            heading: "Compteurs periodiques (utility_meter)"
+            heading: "Compteurs periodiques"
             heading_style: title
             icon: mdi:autorenew
 
-          # Compteur journalier utility_meter — masque si absent
           - type: conditional
             conditions:
               - condition: state
@@ -394,16 +193,9 @@ views:
             card:
               type: custom:mushroom-entity-card
               entity: sensor.water_daily
-              name: "Journalier (remise a zero auto)"
+              name: "Journalier"
               icon: mdi:water-sync
-              icon_color: light-blue
-              primary_info: state
-              secondary_info: name
-              tap_action:
-                action: more-info
-              layout: horizontal
 
-          # Compteur mensuel utility_meter — masque si absent
           - type: conditional
             conditions:
               - condition: state
@@ -412,19 +204,9 @@ views:
             card:
               type: custom:mushroom-entity-card
               entity: sensor.water_monthly
-              name: "Mensuel (remise a zero auto)"
-              icon: mdi:water-boiler
-              icon_color: blue-grey
-              primary_info: state
-              secondary_info: name
-              tap_action:
-                action: more-info
-              layout: horizontal
+              name: "Mensuel"
+              icon: mdi:calendar-month
 
-      # ═══════════════════════════════════════════════════════════════════════
-      # SECTION 7 — Diagnostics (categorie entite DIAGNOSTIC)
-      # Mise en forme discrete : fond grise, texte reduit.
-      # ═══════════════════════════════════════════════════════════════════════
       - type: grid
         column_span: 4
         cards:
@@ -433,20 +215,19 @@ views:
             heading_style: subtitle
             icon: mdi:information-outline
 
-          # Age des donnees : indicateur couleur vert/orange/rouge
           - type: custom:mushroom-template-card
             entity: sensor.saur_water_meter_age_des_donnees
-            primary: "Age des donnees"
+            primary: "Etat de la collecte SAUR"
             secondary: >-
               {% set h = states('sensor.saur_water_meter_age_des_donnees') | float(0) %}
               {% if h < 1 %}
-                Moins d'1 heure — donnees fraiches
+                Donnees actualisees il y a moins d'une heure
               {% elif h < 12 %}
-                {{ h | round(1) }} h — normal
+                Donnees actualisees il y a {{ h | round(1) }} h
               {% elif h < 36 %}
-                {{ h | round(1) }} h — attention
+                Donnees agees de {{ h | round(1) }} h
               {% else %}
-                {{ h | round(1) }} h — donnees obsoletes !
+                Donnees potentiellement obsoletes : {{ h | round(1) }} h
               {% endif %}
             icon: mdi:clock-outline
             icon_color: >-
@@ -454,112 +235,48 @@ views:
               {% if h < 12 %}green{% elif h < 36 %}orange{% else %}red{% endif %}
             tap_action:
               action: more-info
-            card_mod:
-              style: |
-                ha-card {
-                  --ha-card-background: rgba(var(--rgb-primary-text-color), 0.04);
-                  --ha-card-border-color: transparent;
-                  font-size: 0.9em;
-                }
 
-          # Date de releve et index de controle
           - type: entities
-            title: "Etat de la collecte SAUR"
+            title: "Releve et reconstruction"
             show_header_toggle: false
-            card_mod:
-              style: |
-                ha-card {
-                  --ha-card-background: rgba(var(--rgb-primary-text-color), 0.04);
-                  --ha-card-border-color: transparent;
-                  font-size: 0.9em;
-                }
             entities:
+              - entity: sensor.saur_water_meter_index_eau_estime
+                name: "Index estime"
+                icon: mdi:counter
+              - entity: sensor.saur_water_meter_index_eau
+                name: "Dernier index physique SAUR"
+                icon: mdi:gauge
+              - entity: sensor.saur_water_meter_date_dernier_releve
+                name: "Date du releve physique"
+                icon: mdi:calendar-check
               - entity: sensor.saur_water_meter_age_des_donnees
-                name: "Age des donnees (h)"
+                name: "Age des donnees"
                 icon: mdi:clock-outline
 
-              - entity: sensor.saur_water_meter_date_dernier_releve
-                name: "Dernier releve SAUR"
-                icon: mdi:calendar-clock
-
-              - entity: sensor.saur_water_meter_index_eau
-                name: "Index (controle)"
-                secondary_info: last-updated
-
-      # ═══════════════════════════════════════════════════════════════════════
-      # SECTION 8 — Infos compteur (metadonnees hardware depuis delivery_points)
-      # Ces donnees sont renseignees automatiquement si l'appel
-      # /delivery_points reussit au demarrage de l'integration (v0.2.7+).
-      # ═══════════════════════════════════════════════════════════════════════
-      - type: grid
-        column_span: 4
-        cards:
-          - type: heading
-            heading: "Compteur physique"
-            heading_style: subtitle
-            icon: mdi:gauge
-
-          # Fiche technique du compteur — attributs du device HA
-          # Les valeurs sont issues de l'API SAUR /delivery_points et
-          # apparaissent aussi dans Parametres -> Appareils -> SAUR Water Meter.
-          - type: custom:mushroom-template-card
-            primary: "{{ device_attr(device_id('sensor.saur_water_meter_index_eau'), 'manufacturer') }}"
-            secondary: "{{ device_attr(device_id('sensor.saur_water_meter_index_eau'), 'model') }}"
-            icon: mdi:counter
-            icon_color: teal
-            tap_action:
-              action: navigate
-              navigation_path: "/config/devices/dashboard"
-            card_mod:
-              style: |
-                ha-card {
-                  --ha-card-background: rgba(var(--rgb-primary-text-color), 0.04);
-                  --ha-card-border-color: transparent;
-                }
-
           - type: entities
-            title: "Details compteur"
+            title: "Compteur physique"
             show_header_toggle: false
-            card_mod:
-              style: |
-                ha-card {
-                  --ha-card-background: rgba(var(--rgb-primary-text-color), 0.04);
-                  --ha-card-border-color: transparent;
-                  font-size: 0.9em;
-                }
             entities:
-              # L'abonnement est le nom de l'appareil HA (visible dans l'en-tete)
-              - entity: sensor.saur_water_meter_index_eau
-                name: "Abonnement"
-                icon: mdi:identifier
-
-              # serial_number, manufacturer, model sont exposes comme attributs
-              # d'entite depuis v0.3.x (extra_state_attributes dans entity.py).
-              # Ils sont accessibles via type: attribute sans device_attr() Jinja.
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: serial_number
                 name: "N° de serie"
                 icon: mdi:barcode
-
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: manufacturer
                 name: "Fabricant"
                 icon: mdi:factory
-
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: model
                 name: "Modele"
                 icon: mdi:tag-outline
-
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: diameter
                 name: "Diametre"
                 icon: mdi:pipe
-
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: telereleve

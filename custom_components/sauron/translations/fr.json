@@ -51,12 +51,18 @@
   "entity": {
     "sensor": {
       "last_index": { "name": "Index eau" },
+      "estimated_index": { "name": "Index eau estimé" },
       "last_index_date": { "name": "Date dernier relevé" },
       "daily_liters": { "name": "Consommation J-1" },
       "weekly_m3": { "name": "Consommation semaine courante" },
       "monthly_m3": { "name": "Consommation mensuelle" },
       "yearly_m3": { "name": "Consommation annuelle" },
-      "data_freshness_hours": { "name": "Âge des données" }
+      "data_freshness_hours": { "name": "Âge des données" },
+      "meter_serial": { "name": "Numéro de série du compteur" },
+      "meter_brand": { "name": "Fabricant du compteur" },
+      "meter_model": { "name": "Modèle du compteur" },
+      "meter_diameter": { "name": "Diamètre du compteur" },
+      "telereleve_tech": { "name": "Technologie de télérelève" }
     }
   },
   "issues": {

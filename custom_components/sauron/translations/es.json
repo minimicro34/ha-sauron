@@ -51,12 +51,18 @@
   "entity": {
     "sensor": {
       "last_index": { "name": "Índice de agua" },
+      "estimated_index": { "name": "Índice de agua estimado" },
       "last_index_date": { "name": "Fecha última lectura" },
       "daily_liters": { "name": "Consumo de ayer" },
       "weekly_m3": { "name": "Semana actual" },
       "monthly_m3": { "name": "Consumo mensual" },
       "yearly_m3": { "name": "Consumo anual" },
-      "data_freshness_hours": { "name": "Antigüedad datos" }
+      "data_freshness_hours": { "name": "Antigüedad datos" },
+      "meter_serial": { "name": "Número de serie del contador" },
+      "meter_brand": { "name": "Fabricante del contador" },
+      "meter_model": { "name": "Modelo del contador" },
+      "meter_diameter": { "name": "Diámetro del contador" },
+      "telereleve_tech": { "name": "Tecnología de lectura remota" }
     }
   },
   "issues": {

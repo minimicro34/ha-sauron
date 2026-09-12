@@ -51,12 +51,18 @@
   "entity": {
     "sensor": {
       "last_index": { "name": "Wasserstand" },
+      "estimated_index": { "name": "Geschätzter Wasserzählerstand" },
       "last_index_date": { "name": "Datum letzte Ablesung" },
       "daily_liters": { "name": "Gestern Verbrauch" },
       "weekly_m3": { "name": "Aktuelle Woche" },
       "monthly_m3": { "name": "Monatsverbrauch" },
       "yearly_m3": { "name": "Jahresverbrauch" },
-      "data_freshness_hours": { "name": "Datenalter" }
+      "data_freshness_hours": { "name": "Datenalter" },
+      "meter_serial": { "name": "Zähler-Seriennummer" },
+      "meter_brand": { "name": "Zählerhersteller" },
+      "meter_model": { "name": "Zählermodell" },
+      "meter_diameter": { "name": "Zählerdurchmesser" },
+      "telereleve_tech": { "name": "Fernauslesetechnologie" }
     }
   },
   "issues": {
