@@ -43,6 +43,10 @@ warn_unused_configs = true
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+include = ["custom_components*"]
+exclude = ["lovelace_examples*", "tests*"]
+
 [project]
 name = "ha-sauron"
 version = "0.5.0"
