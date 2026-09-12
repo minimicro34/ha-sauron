@@ -56,8 +56,18 @@ def mock_api_client() -> AsyncMock:
     client.async_get_weekly = AsyncMock(
         return_value={
             "consumptions": [
-                {"startDate": "2026-06-09T00:00:00", "endDate": "2026-06-10T00:00:00", "value": 0.085, "rangeType": "Day"},
-                {"startDate": "2026-06-10T00:00:00", "endDate": "2026-06-11T00:00:00", "value": 0.092, "rangeType": "Day"},
+                {
+                    "startDate": "2026-06-09T00:00:00",
+                    "endDate": "2026-06-10T00:00:00",
+                    "value": 0.085,
+                    "rangeType": "Day",
+                },
+                {
+                    "startDate": "2026-06-10T00:00:00",
+                    "endDate": "2026-06-11T00:00:00",
+                    "value": 0.092,
+                    "rangeType": "Day",
+                },
             ],
             "isRemoteReading": True,
         }
@@ -125,8 +135,6 @@ class FakeConfigEntries:
             entry.data = dict(data)
         if options is not None:
             entry.options = dict(options)
-        # Fire update listeners just like real HA — synchronously schedule the
-        # coroutines; the test driver awaits them via _drain_update_listeners.
         for listener in list(entry._update_listeners):
             self._hass._pending_listener_calls.append(listener(self._hass, entry))
         return True
