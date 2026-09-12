@@ -51,6 +51,7 @@
   "entity": {
     "sensor": {
       "last_index": { "name": "Index eau" },
+      "estimated_index": { "name": "Index eau estimé" },
       "last_index_date": { "name": "Date dernier relevé" },
       "daily_liters": { "name": "Consommation J-1" },
       "weekly_m3": { "name": "Consommation semaine courante" },
