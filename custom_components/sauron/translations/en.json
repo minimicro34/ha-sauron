@@ -57,7 +57,12 @@
       "weekly_m3": { "name": "Current week consumption" },
       "monthly_m3": { "name": "Monthly consumption" },
       "yearly_m3": { "name": "Yearly consumption" },
-      "data_freshness_hours": { "name": "Data age" }
+      "data_freshness_hours": { "name": "Data age" },
+      "meter_serial": { "name": "Meter serial number" },
+      "meter_brand": { "name": "Meter manufacturer" },
+      "meter_model": { "name": "Meter model" },
+      "meter_diameter": { "name": "Meter diameter" },
+      "telereleve_tech": { "name": "Remote reading technology" }
     }
   },
   "issues": {
