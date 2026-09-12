@@ -40,11 +40,11 @@ warn_return_any = true
 warn_unused_configs = true
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.backends.legacy:build"
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "ha-sauron"
-version = "0.4.1"
+version = "0.5.0"
 requires-python = ">=3.12"
 dependencies = ["aiohttp>=3.9.0"]
