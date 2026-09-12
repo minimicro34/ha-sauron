@@ -31,9 +31,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
@@ -44,6 +43,9 @@ from .exceptions import (
     SauronNoDataError,
     SauronTransientError,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,13 +123,11 @@ class SauronApiClient:
                 raise SauronApiError(resp.status, await resp.text())
             data: dict[str, Any] = await resp.json()
 
-        # Extract token from nested {"token": {"access_token": "..."}}
         token_obj = data.get("token") or {}
         access_token = token_obj.get("access_token") if isinstance(token_obj, dict) else None
         if not access_token:
             raise SauronAuthError("No access_token in auth response")
 
-        # TTL: prefer the server-emitted expires_in, fall back to a safe default.
         raw_ttl = data.get("expires_in")
         try:
             ttl_s = int(raw_ttl) if raw_ttl is not None else DEFAULT_TOKEN_TTL_S
@@ -141,8 +141,6 @@ class SauronApiClient:
             default_section_id=str(data.get("defaultSectionId", "")),
         )
 
-        # Probe response shape — Plan A §0: confirm whether SAUR emits expires_in.
-        # Drives the choice between a real TTL and the DEFAULT_TOKEN_TTL_S fallback.
         _LOGGER.debug(
             "SAUR auth response keys=%s expires_in=%s",
             list(data.keys()),
@@ -185,7 +183,6 @@ class SauronApiClient:
             return self._cache.access_token
 
         async with self._auth_lock:
-            # Re-check under the lock — another task may have just authenticated.
             if self._is_token_valid():
                 assert self._cache is not None
                 return self._cache.access_token
@@ -194,50 +191,33 @@ class SauronApiClient:
         assert self._cache is not None
         return self._cache.access_token
 
-    # ── Generic request helper ────────────────────────────────────────────────
-
     async def _get(self, path: str, params: dict[str, Any] | None = None) -> Any:
-        """GET with automatic token refresh on 401/403.
-
-        Two-tier handling distinguishes transient auth-endpoint failures
-        from genuine credentials problems (Plan A §3.3).
-        """
+        """GET with automatic token refresh on 401/403."""
         token = await self._ensure_token()
         status, body = await self._do_get(path, token, params)
 
         if status not in (401, 403):
             return body
 
-        # First 401/403: token may have expired silently. Force re-auth, retry once.
         _LOGGER.debug("Token rejected (%d) on %s — refreshing", status, path)
         self._cache = None
         try:
             await self.async_authenticate()
         except SauronAuthError:
-            # The auth endpoint itself rejected our credentials → user must reauth.
             raise
         except SauronApiError as err:
-            # The auth endpoint returned 5xx / unexpected — transient, NOT a
-            # credentials problem.  Let the coordinator surface UpdateFailed.
             raise SauronTransientError(f"Auth refresh failed: {err}") from err
 
         assert self._cache is not None
         status2, body2 = await self._do_get(path, self._cache.access_token, params)
         if status2 in (401, 403):
-            # A freshly-minted token was rejected → credentials really are dead.
             raise SauronAuthError(f"Endpoint {path} rejected fresh token")
         return body2
 
     async def _do_get(
         self, path: str, token: str, params: dict[str, Any] | None
     ) -> tuple[int, Any]:
-        """Issue a single GET and return (status, body).
-
-        - Returns (200, parsed_json) on success.
-        - Returns (401, None) or (403, None) so the caller can decide.
-        - Raises SauronApiError on any other non-2xx.
-        - Raises SauronTransientError on aiohttp.ClientError / TimeoutError.
-        """
+        """Issue a single GET and return (status, body)."""
         headers = {"Authorization": f"Bearer {token}"}
         try:
             async with self._session.get(
@@ -251,19 +231,11 @@ class SauronApiClient:
         except (TimeoutError, aiohttp.ClientError) as err:
             raise SauronTransientError(f"Network error on {path}: {err}") from err
 
-    # ── Discovery ─────────────────────────────────────────────────────────────
-
     async def async_get_website_areas(self, client_id: str) -> dict[str, Any]:
-        """GET /admin/users/v2/website_areas/{client_id} — account contracts."""
         path = _WEBSITE_AREAS_ENDPOINT.format(client_id=client_id)
         return await self._get(path)
 
     async def async_get_delivery_points(self, section_id: str) -> dict[str, Any]:
-        """GET delivery points for a section subscription.
-
-        Response: dict with keys:
-          meter, geographicAddress, sectionSubscriptionId, ...
-        """
         path = _DELIVERY_POINTS_ENDPOINT.format(section_id=section_id)
         data = await self._get(path)
         if not isinstance(data, dict):
@@ -271,17 +243,10 @@ class SauronApiClient:
         return data
 
     async def async_get_meter_last_index(self, section_id: str) -> dict[str, Any]:
-        """GET the latest meter index reading.
-
-        Response: { "readingDate": "ISO datetime", "indexValue": float }
-        """
         path = _METER_INDEXES_ENDPOINT.format(section_id=section_id)
         return await self._get(path)
 
-    # ── Consumption endpoints ─────────────────────────────────────────────────
-
     async def async_get_consumptions(self, section_id: str) -> dict[str, Any]:
-        """GET the latest consumption snapshot."""
         path = _CONSUMPTIONS_ENDPOINT.format(section_id=section_id)
         return await self._get(path)
 
