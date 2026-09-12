@@ -71,6 +71,9 @@ class SauronData:
 
     meter_info: MeterInfo
     latest_reading: MeterReading
+    estimated_index_m3: float | None = None
+    """Estimated cumulative index based on the last physical reading plus daily usage."""
+
     daily_liters: float | None = None
     """Yesterday's consumption in litres (None if not yet available)."""
 
