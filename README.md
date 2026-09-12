@@ -1,15 +1,25 @@
 # SAURon — Home Assistant integration for SAUR water consumption
 
-[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
-[![GitHub release](https://img.shields.io/github/v/release/netnic0/ha-sauron)](https://github.com/netnic0/ha-sauron/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+> Monitor your SAUR water meter in Home Assistant with daily, weekly, monthly and yearly consumption, plus a reconstructed cumulative index for the Energy Dashboard.
 
-Monitor your [SAUR](https://www.saur.fr) water consumption directly in Home Assistant — daily, weekly, monthly and yearly usage, with Energy Dashboard integration.
+<p align="center">
 
-> **Status**: Beta — works in production, field-tested with a single meter installation.
-> DE/ES translations were machine-authored and welcome native-speaker corrections.
+[![GitHub Release](https://img.shields.io/github/v/release/minimicro34/ha-sauron)](https://github.com/minimicro34/ha-sauron/releases)
+[![Validate](https://github.com/minimicro34/ha-sauron/actions/workflows/validate.yml/badge.svg)](https://github.com/minimicro34/ha-sauron/actions/workflows/validate.yml)
+[![HACS](https://img.shields.io/badge/HACS-Custom-blue.svg)](https://hacs.xyz/)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.12%2B-41BDF5.svg)](https://www.home-assistant.io/)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-☕-FFDD00?logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/minimicro34)
+[![License](https://img.shields.io/github/license/minimicro34/ha-sauron)](LICENSE)
+
+</p>
+
+💧 Daily usage • 📅 Weekly / monthly / yearly totals • 🔢 Estimated cumulative index • 📈 Energy Dashboard
 
 ---
+
+SAURon is a custom Home Assistant integration for customers of the **SAUR** water service.
+
+It retrieves the consumption data exposed by the SAUR customer API and provides native Home Assistant sensors. Because SAUR's physical meter index may only be refreshed when an official reading is performed, SAURon also reconstructs an estimated cumulative index from the latest physical reading and the daily consumption data published afterwards.
 
 ## Features
 
@@ -20,19 +30,21 @@ Monitor your [SAUR](https://www.saur.fr) water consumption directly in Home Assi
 | Water index | m³ | Latest physical meter reading reported by SAUR |
 | Estimated water index | m³ | Physical reading + daily consumption since that reading; recommended for Energy Dashboard → Water |
 | Last reading date | date | Date of the latest physical SAUR reading |
-| Daily consumption | L | Yesterday's usage |
-| Weekly consumption | m³ | Current week total |
-| Monthly consumption | m³ | Current month total |
-| Yearly consumption | m³ | Current year total |
-| Data age *(diagnostic)* | h | Hours since last API poll |
+| Daily consumption | L | Latest daily consumption (normally J−1) |
+| Weekly consumption | m³ | Current week total reported by SAUR |
+| Monthly consumption | m³ | Current month total reported by SAUR |
+| Yearly consumption | m³ | Current year total reported by SAUR |
+| Data age *(diagnostic)* | h | Hours since the latest successful API poll |
 
-- **Energy Dashboard** compatible — add `Estimated water index` to **Settings → Energy → Water**
-- **Automatic rebasing** — when SAUR publishes a new physical meter reading, the estimated index uses it as the new baseline and only accumulates consumption after that date
-- **Re-authentication flow** — seamless credential update without removing the integration
-- **Repair Issues** — HA alerts when data becomes stale (configurable threshold)
-- **Options flow** — configure polling interval and stale-data threshold at runtime
-- **Multi-account** — add multiple config entries for multiple subscriptions
-- **Localised** — English, French, German, Spanish
+- **Energy Dashboard compatible** — use `Estimated water index` as the water source.
+- **Automatic rebasing** — when SAUR publishes a new physical meter reading, it becomes the new baseline automatically.
+- **Historical reconstruction** — daily entries from each required month are accumulated after the physical reading date.
+- **Safe reconstruction** — if a required historical monthly payload cannot be retrieved or validated, the estimated index is unavailable instead of publishing an incomplete cumulative value.
+- **Re-authentication flow** — credentials can be updated without removing the integration.
+- **Repair Issues** — Home Assistant warns when data becomes stale.
+- **Options flow** — polling interval and stale-data threshold can be configured at runtime.
+- **Multi-account** — multiple SAUR subscriptions can be configured.
+- **Localised** — English, French, German and Spanish.
 
 ---
 
@@ -40,7 +52,7 @@ Monitor your [SAUR](https://www.saur.fr) water consumption directly in Home Assi
 
 - Home Assistant **2024.12.0** or later
 - A [SAUR customer portal](https://mon-espace.saurclient.fr) account (email + password)
-- Your meter must be enrolled in SAUR's remote-reading programme (most French meters since 2022)
+- A meter with consumption data available through the SAUR customer service
 
 ---
 
@@ -48,58 +60,71 @@ Monitor your [SAUR](https://www.saur.fr) water consumption directly in Home Assi
 
 ### Via HACS (recommended)
 
-1. Open HACS in Home Assistant
-2. Click **⋮ → Custom repositories**
-3. Add `https://github.com/netnic0/ha-sauron` with category **Integration**
-4. Search for **SAURon** and click **Download**
-5. Restart Home Assistant
+1. Open HACS in Home Assistant.
+2. Open **⋮ → Custom repositories**.
+3. Add `https://github.com/minimicro34/ha-sauron` as an **Integration** repository.
+4. Search for **SAURon** and install it.
+5. Restart Home Assistant.
 
 ### Manual
 
-1. Copy the `custom_components/sauron/` folder to your `config/custom_components/` directory
-2. Restart Home Assistant
+1. Copy `custom_components/sauron/` to your Home Assistant `config/custom_components/` directory.
+2. Restart Home Assistant.
 
 ---
 
 ## Configuration
 
-1. Go to **Settings → Integrations → + Add Integration**
-2. Search for **SAURon**
-3. Enter your SAUR portal credentials (same as [mon-espace.saurclient.fr](https://mon-espace.saurclient.fr))
-4. The integration auto-discovers your subscription ID — no manual entry needed
+1. Go to **Settings → Devices & services → Add Integration**.
+2. Search for **SAURon**.
+3. Enter the credentials used on the SAUR customer portal.
+4. SAURon discovers the subscription and water meter information automatically.
 
 ### Options
 
-After setup, click **Configure** on the integration card to adjust:
-
 | Option | Default | Description |
-|---|---|---|
-| Polling interval | 4 h | How often to query the SAUR API |
-| Stale data threshold | 36 h | Hours before a Repair Issue is raised |
+|---|---:|---|
+| Polling interval | 4 h | How often SAURon refreshes the SAUR API |
+| Stale data threshold | 36 h | Age at which Home Assistant raises a Repair Issue |
 
-> SAUR updates consumption data once per day (J−1). Polling more often than every 4 hours is rarely useful.
+SAUR normally publishes consumption data once per day, so a short polling interval is generally unnecessary.
+
+---
+
+## Estimated water index
+
+The physical **Water index** is kept unchanged and always represents the latest official index returned by SAUR.
+
+The **Estimated water index** is calculated as:
+
+```text
+latest physical SAUR index
++ daily consumption strictly after the physical reading date
+= estimated cumulative water index
+```
+
+For example, if SAUR reports a physical reading of `315.000 m³` on May 28, SAURon retrieves the daily consumption entries after May 28 and adds them to that baseline.
+
+When a later technician reading is published, SAURon automatically discards the previous reconstruction baseline and starts again from the new physical reading. The reading day itself is excluded from the accumulated consumption to avoid double counting.
 
 ---
 
 ## Energy Dashboard
 
-Add the **Estimated water index** sensor to the HA Energy Dashboard:
+Use the **Estimated water index** sensor for Home Assistant's water statistics:
 
-1. Go to **Settings → Energy**
-2. Under **Water**, click **Add water source**
-3. Select `sensor.saur_water_meter_estimated_water_index`
-4. Save
+1. Go to **Settings → Energy**.
+2. Under **Water**, select **Add water source**.
+3. Select the `Estimated water index` entity created by SAURon.
+4. Save.
 
-The estimated index starts from SAUR's latest physical meter reading and adds the daily consumption entries published after that reading date. When a technician visit produces a newer physical reading, that reading automatically becomes the new baseline; consumption on and before the new reading date is no longer part of the estimate.
+The sensor uses `device_class: water` and `state_class: total_increasing` and is expressed in m³.
 
-The original **Water index** sensor remains available unchanged and always exposes the latest physical reading returned by SAUR.
+### `utility_meter` (optional)
 
-### utility_meter (optional)
-
-For daily/weekly/monthly resets independent of the SAUR API:
+You can create additional resettable counters from the estimated cumulative index:
 
 ```yaml
-# configuration.yaml
 utility_meter:
   water_daily:
     source: sensor.saur_water_meter_estimated_water_index
@@ -109,49 +134,76 @@ utility_meter:
     cycle: monthly
 ```
 
+Entity IDs may differ depending on the language in which the entities were first created. Check **Developer Tools → States** before copying an entity ID into YAML.
+
+---
+
+## Lovelace dashboard example
+
+A complete example is available in [`lovelace_examples/water_dashboard.yaml`](lovelace_examples/water_dashboard.yaml).
+
+It includes:
+
+- J−1, current week, month and year consumption;
+- 7-day and 30-day consumption graphs based on the estimated cumulative index;
+- the estimated and physical meter indexes;
+- optional `utility_meter` daily and monthly counters;
+- data freshness diagnostics;
+- physical meter metadata such as serial number, manufacturer, model, diameter and remote-reading technology.
+
+The example uses Mushroom, ApexCharts Card and card-mod.
+
 ---
 
 ## Data freshness
 
-SAUR publishes consumption data once per day, typically for J−1.
-The `Daily consumption` sensor will show **Unknown** until a daily value is available.
-The physical `Water index` may be updated much less frequently than daily consumption; this is why the integration exposes the separate cumulative `Estimated water index` sensor.
+SAUR publishes consumption data once per day, typically for J−1. The physical meter index can remain unchanged for much longer because it corresponds to an official meter reading rather than the daily consumption feed.
+
+The `Daily consumption` sensor may therefore remain unchanged until a new daily value is published. This does not prevent the week, month and year totals from reflecting the data available from SAUR.
 
 ---
 
 ## Troubleshooting
 
-**"Invalid credentials" during setup**
-- Double-check your email and password on [mon-espace.saurclient.fr](https://mon-espace.saurclient.fr)
-- SAUR accounts with two-factor authentication are not yet supported
+**Invalid credentials during setup**
 
-**"Cannot connect"**
-- The SAUR API (`apib2c.azure.saurclient.fr`) may be temporarily unavailable
-- Check your internet connection and retry
+- Verify the same email and password on the SAUR customer portal.
 
-**Sensors show "Unknown" after install**
-- SAUR consumption data updates once per day — wait up to 24 hours for the first readings
-- Check the HA logs for debug output: enable `custom_components.sauron: debug` in your `logger:` config
+**Cannot connect**
 
-**Estimated water index shows "Unknown"**
-- SAURon could not retrieve or validate one of the monthly consumption payloads required since the last physical reading
-- The physical `Water index` and the other consumption sensors remain independent of this reconstruction
+- The SAUR API may be temporarily unavailable.
+- Check the Home Assistant logs and retry later.
 
-**Stale data alert in Repairs**
-- Your meter may not be transmitting (check the SAUR portal)
-- The threshold is configurable via **Configure** on the integration card
+**Estimated water index is unavailable**
+
+- SAURon could not retrieve or validate one of the monthly payloads needed between the physical reading and the latest consumption date.
+- The physical `Water index` and the normal daily/weekly/monthly/yearly sensors remain independent from the reconstructed index.
+
+**Stale data Repair Issue**
+
+- Check whether new consumption is visible on the SAUR portal.
+- The stale-data threshold can be changed from the integration options.
 
 ---
 
 ## Technical notes
 
-- The SAUR mobile API accepts `captchaToken: "true"` as a literal string — no browser automation or real reCAPTCHA solving is required
-- The estimated cumulative index is reconstructed from monthly API responses containing daily `Day` entries; the day of the physical reading itself is excluded to avoid double counting
-- No external Python library dependency — uses HA's bundled `aiohttp`
-- All credentials are stored in HA's config entry and never sent to third parties
+- The integration uses Home Assistant's bundled `aiohttp`; no external Python library is required.
+- The estimated cumulative index is reconstructed exclusively from daily `Day` entries returned by the monthly consumption endpoint.
+- Entries are included only when their date is strictly later than the latest physical reading date.
+- A new physical reading automatically rebases the reconstruction.
+- Credentials remain stored in the Home Assistant config entry and are not sent to third parties by this integration.
+
+---
+
+## Credits
+
+SAURon was originally created by **Nicolas Diguet (@netnic0)**.
+
+The estimated cumulative water index, updated dashboard, documentation and related development for v0.5.0 were contributed by **Nicolas Chantrein (@minimicro34)**.
 
 ---
 
 ## License
 
-[MIT](LICENSE) — © 2026 Nicolas Diguet
+[MIT](LICENSE) — © 2026 Nicolas Diguet and Nicolas Chantrein
