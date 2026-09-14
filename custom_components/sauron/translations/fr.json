@@ -54,6 +54,7 @@
       "estimated_index": { "name": "Index eau estimé" },
       "last_index_date": { "name": "Date dernier relevé" },
       "daily_liters": { "name": "Dernière consommation journalière" },
+      "daily_date": { "name": "Date dernière consommation journalière" },
       "weekly_m3": { "name": "Consommation semaine courante" },
       "monthly_m3": { "name": "Consommation mensuelle" },
       "yearly_m3": { "name": "Consommation annuelle" },
