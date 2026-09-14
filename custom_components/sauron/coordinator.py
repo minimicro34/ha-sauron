@@ -9,7 +9,11 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue, async_delete_issue
+from homeassistant.helpers.issue_registry import (
+    IssueSeverity,
+    async_create_issue,
+    async_delete_issue,
+)
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import SauronApiClient, SauronAuthError, SauronData
@@ -180,7 +184,8 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                 )
             except Exception as err:
                 _LOGGER.warning(
-                    "Could not build estimated water index for %s: monthly data %04d-%02d failed: %s",
+                    "Could not build estimated water index for %s: monthly data "
+                    "%04d-%02d failed: %s",
                     subscription_id,
                     year,
                     month,
@@ -463,8 +468,12 @@ def _parse_consumption(
         latest = raw[-1]
         if len(raw) >= 2:
             prev = raw[-2]
-            prev_val = float(prev.get("index") or prev.get("value") or prev.get("volume") or 0.0)
-            curr_val = float(latest.get("index") or latest.get("value") or latest.get("volume") or 0.0)
+            prev_val = float(
+                prev.get("index") or prev.get("value") or prev.get("volume") or 0.0
+            )
+            curr_val = float(
+                latest.get("index") or latest.get("value") or latest.get("volume") or 0.0
+            )
             delta_m3 = curr_val - prev_val
             if delta_m3 >= 0:
                 daily_liters = round(delta_m3 * 1000, 1)
