@@ -78,7 +78,10 @@ class SauronData:
     """Estimated cumulative index based on the last physical reading plus daily usage."""
 
     daily_liters: float | None = None
-    """Yesterday's consumption in litres (None if not yet available)."""
+    """Most recent daily consumption published by SAUR, in litres."""
+
+    daily_date: date | None = None
+    """Date associated with the most recent daily consumption published by SAUR."""
 
     weekly_m3: float | None = None
     monthly_m3: float | None = None
