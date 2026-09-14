@@ -43,11 +43,6 @@ METER_SENSORS: tuple[SensorEntityDescription, ...] = (
         suggested_display_precision=0,
     ),
     SensorEntityDescription(
-        key="daily_date",
-        translation_key="daily_date",
-        device_class=SensorDeviceClass.DATE,
-    ),
-    SensorEntityDescription(
         key="weekly_m3",
         translation_key="weekly_m3",
         device_class=SensorDeviceClass.WATER,
@@ -149,8 +144,6 @@ class SauronSensor(SauronMeterEntity, SensorEntity):
             return data.latest_reading.reading_date
         if key == "daily_liters":
             return data.daily_liters
-        if key == "daily_date":
-            return data.daily_date
         if key == "weekly_m3":
             return data.weekly_m3
         if key == "monthly_m3":
