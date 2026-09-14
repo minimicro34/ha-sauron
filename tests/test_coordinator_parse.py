@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
 from custom_components.sauron.api.exceptions import SauronNoDataError
 from custom_components.sauron.coordinator import (
     _extract_daily_liters,
+    _extract_latest_daily,
     _extract_period_m3,
     _extract_week_total_m3,
     _parse_consumption,
@@ -48,16 +49,65 @@ class TestParseLastIndex:
 
 
 class TestExtractDailyLiters:
-    """Tests for the weekly consumptions daily extractor."""
+    """Tests for the monthly consumptions daily extractor."""
 
     def test_extracts_last_day_entry(self) -> None:
         raw = {
             "consumptions": [
-                {"startDate": "2026-06-14 00:00:00", "value": 0.072, "rangeType": "Day"},
-                {"startDate": "2026-06-15 00:00:00", "value": 0.085, "rangeType": "Day"},
+                {
+                    "startDate": "2026-06-14 00:00:00",
+                    "value": 0.072,
+                    "rangeType": "Day",
+                },
+                {
+                    "startDate": "2026-06-15 00:00:00",
+                    "value": 0.085,
+                    "rangeType": "Day",
+                },
             ]
         }
         assert _extract_daily_liters(raw) == pytest.approx(85.0, abs=0.5)
+
+    def test_uses_latest_date_even_if_payload_is_unsorted(self) -> None:
+        raw = {
+            "consumptions": [
+                {
+                    "startDate": "2026-06-15 00:00:00",
+                    "value": 0.085,
+                    "rangeType": "Day",
+                },
+                {
+                    "startDate": "2026-06-13 00:00:00",
+                    "value": 0.400,
+                    "rangeType": "Day",
+                },
+            ]
+        }
+        assert _extract_daily_liters(raw) == pytest.approx(85.0, abs=0.5)
+
+    def test_returns_latest_daily_date_with_value(self) -> None:
+        raw = {
+            "consumptions": [
+                {
+                    "startDate": "2026-06-12 00:00:00",
+                    "value": 0.150,
+                    "rangeType": "Day",
+                },
+                {
+                    "startDate": "2026-06-15 00:00:00",
+                    "value": 0.085,
+                    "rangeType": "Day",
+                },
+                {
+                    "startDate": "2026-06-16 00:00:00",
+                    "value": 0.0,
+                    "rangeType": "Day",
+                },
+            ]
+        }
+        liters, daily_date = _extract_latest_daily(raw)
+        assert liters == pytest.approx(85.0, abs=0.5)
+        assert daily_date == date(2026, 6, 15)
 
     def test_ignores_non_day_entries(self) -> None:
         raw = {
@@ -70,13 +120,18 @@ class TestExtractDailyLiters:
     def test_negative_value_returns_none(self) -> None:
         raw = {
             "consumptions": [
-                {"startDate": "2026-06-15 00:00:00", "value": -0.1, "rangeType": "Day"},
+                {
+                    "startDate": "2026-06-15 00:00:00",
+                    "value": -0.1,
+                    "rangeType": "Day",
+                },
             ]
         }
         assert _extract_daily_liters(raw) is None
 
     def test_empty_consumptions(self) -> None:
         assert _extract_daily_liters({"consumptions": []}) is None
+        assert _extract_latest_daily({"consumptions": []}) == (None, None)
 
     def test_missing_consumptions_key(self) -> None:
         assert _extract_daily_liters({}) is None
@@ -84,7 +139,11 @@ class TestExtractDailyLiters:
     def test_converts_m3_to_liters(self) -> None:
         raw = {
             "consumptions": [
-                {"startDate": "2026-06-15 00:00:00", "value": 0.150, "rangeType": "Day"},
+                {
+                    "startDate": "2026-06-15 00:00:00",
+                    "value": 0.150,
+                    "rangeType": "Day",
+                },
             ]
         }
         assert _extract_daily_liters(raw) == pytest.approx(150.0, abs=0.5)
@@ -129,7 +188,11 @@ class TestParseConsumptionList:
 
 class TestParseConsumptionDict:
     def test_dict_with_pre_computed_daily(self) -> None:
-        raw = {"index": 1234.567, "date": "2026-06-15", "dailyConsumption": 0.085}
+        raw = {
+            "index": 1234.567,
+            "date": "2026-06-15",
+            "dailyConsumption": 0.085,
+        }
         data = _parse_consumption(_SUB, raw, _NOW)
         assert data.daily_liters == pytest.approx(85.0, abs=0.5)
 
@@ -164,9 +227,21 @@ class TestExtractWeekTotalM3:
     def test_sums_all_day_entries(self) -> None:
         raw = {
             "consumptions": [
-                {"startDate": "2026-06-10 00:00:00", "value": 0.080, "rangeType": "Day"},
-                {"startDate": "2026-06-11 00:00:00", "value": 0.090, "rangeType": "Day"},
-                {"startDate": "2026-06-12 00:00:00", "value": 0.072, "rangeType": "Day"},
+                {
+                    "startDate": "2026-06-10 00:00:00",
+                    "value": 0.080,
+                    "rangeType": "Day",
+                },
+                {
+                    "startDate": "2026-06-11 00:00:00",
+                    "value": 0.090,
+                    "rangeType": "Day",
+                },
+                {
+                    "startDate": "2026-06-12 00:00:00",
+                    "value": 0.072,
+                    "rangeType": "Day",
+                },
             ]
         }
         result = _extract_week_total_m3(raw)
