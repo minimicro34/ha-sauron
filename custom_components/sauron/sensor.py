@@ -14,6 +14,7 @@ from homeassistant.components.sensor import (
 from homeassistant.const import EntityCategory, UnitOfTime, UnitOfVolume
 
 from .const import DOMAIN
+from .coordinator import _data_age_hours
 from .entity import SauronMeterEntity
 
 if TYPE_CHECKING:
@@ -96,6 +97,12 @@ METER_SENSORS: tuple[SensorEntityDescription, ...] = (
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
+        key="last_successful_poll",
+        translation_key="last_successful_poll",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
         key="meter_serial",
         translation_key="meter_serial",
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -138,7 +145,7 @@ class SauronSensor(SauronMeterEntity, SensorEntity):
         self.entity_description = description
 
     @property
-    def native_value(self) -> float | date | str | None:
+    def native_value(self) -> float | date | datetime | str | None:
         data = self.coordinator.data
         key = self.entity_description.key
 
@@ -159,9 +166,9 @@ class SauronSensor(SauronMeterEntity, SensorEntity):
         if key == "yearly_m3":
             return data.yearly_m3
         if key == "data_freshness_hours":
-            now = datetime.now(UTC)
-            delta = now - data.latest_reading.fetched_at
-            return round(delta.total_seconds() / 3600, 1)
+            return _data_age_hours(data.daily_date, datetime.now(UTC))
+        if key == "last_successful_poll":
+            return data.latest_reading.fetched_at
         if key == "meter_serial":
             return data.meter_info.meter_serial
         if key == "meter_brand":
