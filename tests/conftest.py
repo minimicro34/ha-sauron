@@ -78,11 +78,6 @@ def mock_api_client() -> AsyncMock:
 
 
 # ── Lightweight Home Assistant fakes (Plan A persistence tests) ──────────────
-#
-# These fakes intentionally avoid the pytest-homeassistant-custom-component
-# dependency.  They emulate just enough of ConfigEntry / HomeAssistant for
-# the integration's __init__ module to exercise hydration, persistence, and
-# the reload-guard listener.
 
 
 class FakeConfigEntry:
@@ -114,15 +109,25 @@ class FakeConfigEntry:
 
 
 class FakeConfigEntries:
-    """Minimal stand-in for hass.config_entries — captures reload + update calls."""
+    """Minimal stand-in for hass.config_entries used by integration tests."""
 
     def __init__(self, hass: FakeHomeAssistant) -> None:
         self._hass = hass
         self.reload_calls: list[str] = []
+        self.forward_calls: list[tuple[str, tuple[Any, ...]]] = []
+        self.unload_calls: list[tuple[str, tuple[Any, ...]]] = []
+        self.unload_result = True
 
     async def async_reload(self, entry_id: str) -> bool:
         self.reload_calls.append(entry_id)
         return True
+
+    async def async_forward_entry_setups(self, entry: FakeConfigEntry, platforms: list[Any]) -> None:
+        self.forward_calls.append((entry.entry_id, tuple(platforms)))
+
+    async def async_unload_platforms(self, entry: FakeConfigEntry, platforms: list[Any]) -> bool:
+        self.unload_calls.append((entry.entry_id, tuple(platforms)))
+        return self.unload_result
 
     def async_update_entry(
         self,
