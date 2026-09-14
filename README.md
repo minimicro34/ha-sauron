@@ -213,6 +213,22 @@ The **Latest daily consumption** sensor deliberately shows the latest non-zero d
 
 ---
 
+## Development
+
+Development and pull-request guidelines are documented in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+The project includes a `Makefile` so the Python quality checks can be run locally with the same entry point used by GitHub Actions:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -e . pytest pytest-asyncio pytest-cov ruff
+make check
+```
+
+Useful individual targets include `make format`, `make format-check`, `make lint`, `make test`, and `make clean`. Hassfest and HACS validation continue to run in GitHub Actions.
+
+---
+
 ## Credits
 
 SAURon was originally created by **Nicolas Diguet (@netnic0)**.
