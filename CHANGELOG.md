@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added a **Latest daily consumption date** diagnostic sensor so delayed SAUR daily values are no longer presented without their actual date.
+- Added retry backoff for temporary server-side failures affecting estimated-index reconstruction: 2 minutes, then 5 minutes, then 10 minutes until recovery.
+- Added recovery logging when historical monthly data becomes available again.
+- Added tests for delayed/unsorted daily values, retry backoff, last-value preservation and recovery.
+
+### Changed
+
+- Renamed the daily consumption label from "Yesterday consumption" / "Consommation J-1" to **Latest daily consumption** / **Dernière consommation journalière**.
+- HTTP 5xx responses from SAUR data endpoints are now treated as transient server errors; HTTP 4xx handling remains separate.
+- The estimated water index now keeps the last valid value during temporary historical-month failures instead of becoming unavailable.
+- Estimated-index parsing now ignores malformed values outside the required reconstruction date range while still rejecting malformed in-range data.
+- Updated English, French, German and Spanish translations and documentation to reflect delayed SAUR publication.
+
 ## [0.5.0](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.4.1...minimicro34:v0.5.0) - 2026-09-12
 
 ### Added
@@ -40,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-* **device:** enrich device info + water dashboard improvements ([2462bbd](https://github.com/netnic0/ha-sauron/commit/2462bbde21232394ed0cd2393d10e26930fe3183))
+* **device:** enrich device info + water dashboard improvements ([2462bbd](https://github.com/netnic0/ha-sauron/commit/2462bbde21232394ed0cd2393d10e26930fe7fd6))
 * **device:** enrich DeviceInfo with meter hardware metadata from delivery_points ([502c5d9](https://github.com/netnic0/ha-sauron/commit/502c5d94c6ac1002a16295bf9d6296ab48e0145a))
 * **lovelace:** add meter hardware info section to water dashboard ([46aac6a](https://github.com/netnic0/ha-sauron/commit/46aac6a35d5eba5ee2e8bd87d6bf3d6e69fe7fd6))
 
@@ -91,7 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 * add MIT license, expand README, fix sensor regression ([6e298ce](https://github.com/netnic0/ha-sauron/commit/6e298ce3eaf90af76f38e2156424e30083727aca))
-* MIT license + expanded README + sensor date fix ([907d3e0](https://github.com/netnic0/ha-sauron/commit/907d3e01d3a9a595e67ac6a5a358aee53f3a239f))
+* MIT license + expanded README + sensor date fix ([907d3e0](https://github.com/netnic0/ha-sauron/commit/907d3e01d3a9a595e67ac6a5a358aee53f3a024a))
 
 ## [0.2.1](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.0...ha-sauron-v0.2.1) (2026-06-16)
 
