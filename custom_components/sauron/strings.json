@@ -43,7 +43,7 @@
         },
         "data_description": {
           "scan_interval_h": "How often to query the SAUR API. SAUR usually publishes daily data with a delay, so values below 4h are rarely useful.",
-          "stale_data_threshold_h": "Raise a Home Assistant alert if the latest meter reading is older than this many hours."
+          "stale_data_threshold_h": "Raise a Home Assistant alert if the latest published daily consumption is older than this many hours."
         }
       }
     }
@@ -59,6 +59,7 @@
       "monthly_m3": { "name": "Monthly consumption" },
       "yearly_m3": { "name": "Yearly consumption" },
       "data_freshness_hours": { "name": "Data age" },
+      "last_successful_poll": { "name": "Last successful poll" },
       "meter_serial": { "name": "Meter serial number" },
       "meter_brand": { "name": "Meter manufacturer" },
       "meter_model": { "name": "Meter model" },
@@ -69,7 +70,7 @@
   "issues": {
     "stale_data": {
       "title": "Stale SAUR water data",
-      "description": "The latest reading for subscription `{subscription_id}` is **{age_h} hours** old. The SAUR API may be unavailable or the meter may not be transmitting. Check your SAUR customer portal."
+      "description": "The latest daily consumption for subscription `{subscription_id}` is **{age_h} hours** old. SAUR may not have published new consumption data yet. Check your SAUR customer portal if this persists."
     }
   }
 }
