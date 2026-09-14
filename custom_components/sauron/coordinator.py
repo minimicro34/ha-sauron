@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -115,6 +115,10 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             _LOGGER.warning("Could not fetch monthly data for %s: %s", subscription_id, err)
 
         daily_liters, daily_date = _extract_latest_daily(raw_monthly)
+        if daily_date is None and self.data is not None:
+            daily_liters = self.data.daily_liters
+            daily_date = self.data.daily_date
+
         weekly_m3 = _extract_week_total_from_monthly(raw_monthly, yesterday)
         monthly_m3 = _extract_period_m3(raw_monthly)
 
@@ -144,9 +148,9 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             yearly_m3=yearly_m3,
         )
 
-        reading_age_h = (now.date() - enriched.latest_reading.reading_date).days * 24 + now.hour
+        data_age_h = _data_age_hours(enriched.daily_date, now)
         issue_id = f"{ISSUE_STALE_DATA}_{self.config_entry.entry_id}"
-        if reading_age_h > self._stale_threshold_h:
+        if data_age_h is not None and data_age_h > self._stale_threshold_h:
             async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -156,10 +160,10 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                 translation_key=ISSUE_STALE_DATA,
                 translation_placeholders={
                     "subscription_id": subscription_id,
-                    "age_h": f"{reading_age_h:.0f}",
+                    "age_h": f"{data_age_h:.0f}",
                 },
             )
-        else:
+        elif data_age_h is not None:
             async_delete_issue(self.hass, DOMAIN, issue_id)
         return enriched
 
@@ -317,6 +321,14 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _data_age_hours(data_date: date | None, now: datetime) -> float | None:
+    """Return hours elapsed since the start of the latest published data day."""
+    if data_date is None:
+        return None
+    data_start = datetime.combine(data_date, time.min, tzinfo=now.tzinfo or UTC)
+    return round(max(0.0, (now - data_start).total_seconds() / 3600), 1)
 
 
 def _iter_months(start_date: date, end_date: date) -> list[tuple[int, int]]:
