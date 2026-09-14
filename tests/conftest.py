@@ -122,7 +122,9 @@ class FakeConfigEntries:
         self.reload_calls.append(entry_id)
         return True
 
-    async def async_forward_entry_setups(self, entry: FakeConfigEntry, platforms: list[Any]) -> None:
+    async def async_forward_entry_setups(
+        self, entry: FakeConfigEntry, platforms: list[Any]
+    ) -> None:
         self.forward_calls.append((entry.entry_id, tuple(platforms)))
 
     async def async_unload_platforms(self, entry: FakeConfigEntry, platforms: list[Any]) -> bool:
