@@ -91,7 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-* **integration:** address P0/P1 code review findings ([#?](https://github.com/netnic0/ha-sauron/commit/88470d677d981a5d4686966b5d98e2b56565edcd))
+* **integration:** address P0/P1 code review findings ([#23](https://github.com/netnic0/ha-sauron/commit/88470d677d981a5d4686966b5d98e2b56565edcd))
 
 ## [0.2.6](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.5...ha-sauron-v0.2.6) (2026-06-17)
 
