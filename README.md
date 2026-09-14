@@ -33,14 +33,15 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 | Monthly consumption | m³ | Current month total reported by SAUR |
 | Yearly consumption | m³ | Current year total reported by SAUR |
 
-- **9 diagnostic sensor entities**, grouped by Home Assistant in the device's **Diagnostic** section:
+- **10 diagnostic sensor entities**, grouped by Home Assistant in the device's **Diagnostic** section:
 
 | Diagnostic entity | Unit | Description |
 |---|---|---|
 | Water index | m³ | Latest physical meter reading reported by SAUR |
 | Last reading date | date | Date of the latest physical SAUR reading |
 | Latest daily consumption date | date | Date corresponding to the latest non-zero daily value published by SAUR |
-| Data age | h | Hours since the latest successful API poll |
+| Data age | h | Hours since the date of the latest daily consumption actually published by SAUR |
+| Last successful poll | timestamp | Timestamp of the latest successful coordinator refresh |
 | Meter serial number | — | Physical meter serial number |
 | Meter manufacturer | — | Meter manufacturer reported by SAUR |
 | Meter model | — | Meter model reported by SAUR |
@@ -53,7 +54,7 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 - **Transient-server retry** — HTTP 5xx responses are treated as temporary failures and the estimated-index refresh backs off at 2, 5 and then 10 minutes.
 - **Last-value preservation** — a temporary historical-month failure keeps the last valid estimated index instead of replacing it with an incomplete value.
 - **Re-authentication flow** — credentials can be updated without removing the integration.
-- **Repair Issues** — Home Assistant warns when data becomes stale.
+- **Repair Issues** — Home Assistant warns when the latest published daily consumption becomes stale.
 - **Options flow** — polling interval and stale-data threshold can be configured at runtime.
 - **Multi-account** — multiple SAUR subscriptions can be configured.
 - **Localised** — English, French, German and Spanish.
@@ -97,9 +98,9 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 | Option | Default | Description |
 |---|---:|---|
 | Polling interval | 4 h | How often SAURon refreshes the SAUR API |
-| Stale data threshold | 36 h | Age at which Home Assistant raises a Repair Issue |
+| Stale data threshold | 72 h | Age of the latest published daily consumption at which Home Assistant raises a Repair Issue |
 
-SAUR generally publishes consumption data once per day, sometimes with a delay, so a short normal polling interval is usually unnecessary. Temporary HTTP 5xx failures affecting estimated-index reconstruction use a separate short retry sequence of 2, 5 and 10 minutes.
+SAUR generally publishes consumption data once per day, sometimes with a delay and potentially later after a weekend. A 72-hour default stale threshold avoids treating ordinary publication delays as an integration failure. Existing user-configured thresholds are preserved. Temporary HTTP 5xx failures affecting estimated-index reconstruction use a separate short retry sequence of 2, 5 and 10 minutes.
 
 ---
 
@@ -175,6 +176,8 @@ SAUR generally publishes daily consumption data with a delay. The most recent av
 
 The **Latest daily consumption** sensor deliberately shows the latest non-zero daily value actually available from SAUR, and the **Latest daily consumption date** diagnostic sensor shows which day that value belongs to. This prevents a delayed value from being presented as J−1.
 
+The **Data age** diagnostic is calculated from that daily-consumption date and is also the value used by the stale-data Repair Issue. The separate **Last successful poll** timestamp reports when SAUron last completed a successful coordinator refresh. Together these distinguish delayed SAUR publication from a polling/API failure: fresh polling can continue while the published consumption itself grows older.
+
 ---
 
 ## Troubleshooting
@@ -196,6 +199,7 @@ The **Latest daily consumption** sensor deliberately shows the latest non-zero d
 
 **Stale data Repair Issue**
 
+- Compare **Data age** with **Last successful poll**. A recent successful poll with an old daily-consumption date normally means SAUR has not published new consumption yet.
 - Check whether new consumption is visible on the SAUR portal.
 - The stale-data threshold can be changed from the integration options.
 

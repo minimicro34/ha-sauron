@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2](https://github.com/minimicro34/ha-sauron/compare/v0.5.1...v0.5.2) - 2026-09-14
+
+### Added
+
+- Added a **Last successful poll** diagnostic timestamp so API health can be distinguished from delayed SAUR publication.
+- Added data-freshness tests covering daily-date age calculation and the new default stale threshold.
+
+### Changed
+
+- **Data age** now measures the age of the latest daily consumption actually published by SAUR instead of the time elapsed since the latest API fetch.
+- The stale-data Repair Issue now uses that same latest daily consumption date, keeping the diagnostic sensor and alert semantics aligned.
+- The default stale-data threshold is now **72 hours** instead of 36 hours to better tolerate delayed publication across weekends; existing user-configured thresholds are preserved.
+- The latest known daily consumption and its date are kept when a temporary monthly-data failure prevents fresh enrichment.
+- Updated English, French, German and Spanish wording to distinguish data publication age from polling health.
+- Bumped the integration manifest version to **0.5.2**.
+
 ## [0.5.1](https://github.com/minimicro34/ha-sauron/compare/v0.5.0...v0.5.1) - 2026-09-14
 
 ### Added

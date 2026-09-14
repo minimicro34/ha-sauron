@@ -21,10 +21,10 @@ OPT_STALE_DATA_THRESHOLD_H: Final[str] = "stale_data_threshold_h"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 DEFAULT_SCAN_INTERVAL_H: Final[int] = 4
-"""Poll every 4 hours — SAUR data is updated once per day (J-1)."""
+"""Poll every 4 hours — SAUR daily data is normally published with a delay."""
 
-DEFAULT_STALE_DATA_THRESHOLD_H: Final[int] = 36
-"""Raise a Repair Issue if the latest reading is older than 36h."""
+DEFAULT_STALE_DATA_THRESHOLD_H: Final[int] = 72
+"""Raise a Repair Issue if the latest daily consumption is older than 72h."""
 
 # ── Options bounds ────────────────────────────────────────────────────────────
 OPT_SCAN_INTERVAL_H_MIN: Final[int] = 1

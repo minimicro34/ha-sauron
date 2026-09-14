@@ -43,7 +43,7 @@
         },
         "data_description": {
           "scan_interval_h": "Wie oft die SAUR-API abgefragt wird. SAUR veröffentlicht tägliche Verbrauchsdaten normalerweise mit Verzögerung, daher sind Werte unter 4h selten sinnvoll.",
-          "stale_data_threshold_h": "HA-Benachrichtigung auslösen, wenn der letzte Zählerstand älter als diese Stundenzahl ist."
+          "stale_data_threshold_h": "Home Assistant-Warnung auslösen, wenn der zuletzt veröffentlichte Tagesverbrauch älter als diese Stundenzahl ist."
         }
       }
     }
@@ -59,6 +59,7 @@
       "monthly_m3": { "name": "Monatsverbrauch" },
       "yearly_m3": { "name": "Jahresverbrauch" },
       "data_freshness_hours": { "name": "Datenalter" },
+      "last_successful_poll": { "name": "Letzte erfolgreiche Abfrage" },
       "meter_serial": { "name": "Zähler-Seriennummer" },
       "meter_brand": { "name": "Zählerhersteller" },
       "meter_model": { "name": "Zählermodell" },
@@ -69,7 +70,7 @@
   "issues": {
     "stale_data": {
       "title": "Veraltete SAUR-Wasserdaten",
-      "description": "Die letzte Ablesung für Abonnement `{subscription_id}` ist **{age_h} Stunden** alt."
+      "description": "Der zuletzt veröffentlichte Tagesverbrauch für Abonnement `{subscription_id}` ist **{age_h} Stunden** alt. SAUR hat möglicherweise noch keine neuen Verbrauchsdaten veröffentlicht."
     }
   }
 }

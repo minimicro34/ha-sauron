@@ -43,7 +43,7 @@
         },
         "data_description": {
           "scan_interval_h": "Fréquence d'interrogation de l'API SAUR. SAUR publie généralement les données journalières avec un décalage, donc en dessous de 4h c'est rarement utile.",
-          "stale_data_threshold_h": "Déclencher une alerte HA si la dernière lecture du compteur est plus ancienne que ce nombre d'heures."
+          "stale_data_threshold_h": "Déclencher une alerte HA si la dernière consommation journalière publiée est plus ancienne que ce nombre d'heures."
         }
       }
     }
@@ -59,6 +59,7 @@
       "monthly_m3": { "name": "Consommation mensuelle" },
       "yearly_m3": { "name": "Consommation annuelle" },
       "data_freshness_hours": { "name": "Âge des données" },
+      "last_successful_poll": { "name": "Dernier polling réussi" },
       "meter_serial": { "name": "Numéro de série du compteur" },
       "meter_brand": { "name": "Fabricant du compteur" },
       "meter_model": { "name": "Modèle du compteur" },
@@ -69,7 +70,7 @@
   "issues": {
     "stale_data": {
       "title": "Données SAUR obsolètes",
-      "description": "Le dernier relevé de l'abonnement `{subscription_id}` date de **{age_h} heures**. L'API SAUR est peut-être indisponible ou le compteur ne remonte plus de données. Vérifiez votre espace client SAUR."
+      "description": "La dernière consommation journalière de l'abonnement `{subscription_id}` date de **{age_h} heures**. SAUR n'a peut-être simplement pas encore publié de nouvelle consommation. Vérifiez votre espace client SAUR si cela persiste."
     }
   }
 }
