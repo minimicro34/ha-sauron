@@ -75,7 +75,10 @@ class TestGenericHelpers:
 
 class TestEstimatedIndexValidation:
     def test_returns_physical_index_when_range_does_not_advance(self) -> None:
-        assert _estimate_index_from_monthly(12.3456, date(2026, 9, 14), date(2026, 9, 14), []) == 12.346
+        result = _estimate_index_from_monthly(
+            12.3456, date(2026, 9, 14), date(2026, 9, 14), []
+        )
+        assert result == 12.346
 
     def test_rejects_non_list_consumptions(self) -> None:
         assert (
