@@ -12,11 +12,10 @@ from custom_components.sauron.coordinator import (
 )
 
 
-def _month(*entries: tuple[str, float]) -> dict[str, object]:
+def _month(*entries: tuple[str, object]) -> dict[str, object]:
     return {
         "consumptions": [
-            {"startDate": day, "value": value, "rangeType": "Day"}
-            for day, value in entries
+            {"startDate": day, "value": value, "rangeType": "Day"} for day, value in entries
         ]
     }
 
@@ -102,6 +101,33 @@ def test_new_physical_reading_rebases_estimate() -> None:
         ],
     )
     assert result == pytest.approx(350.750, abs=0.001)
+
+
+def test_irrelevant_malformed_values_do_not_break_estimate() -> None:
+    result = _estimate_index_from_monthly(
+        315.000,
+        date(2026, 5, 28),
+        date(2026, 5, 30),
+        [
+            _month(
+                ("2026-05-27T00:00:00", None),
+                ("2026-05-29T00:00:00", 0.100),
+                ("2026-05-30T00:00:00", 0.200),
+                ("2026-05-31T00:00:00", None),
+            )
+        ],
+    )
+    assert result == pytest.approx(315.300, abs=0.001)
+
+
+def test_in_range_malformed_value_makes_estimate_unavailable() -> None:
+    result = _estimate_index_from_monthly(
+        315.000,
+        date(2026, 5, 28),
+        date(2026, 5, 30),
+        [_month(("2026-05-29T00:00:00", None))],
+    )
+    assert result is None
 
 
 def test_invalid_monthly_payload_makes_estimate_unavailable() -> None:

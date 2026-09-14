@@ -58,18 +58,12 @@ class TestHydrateTokenFromEntry:
         fake_entry.data[CONF_TOKEN_CACHE] = _valid_cache_dict(expires_in=-10)
         assert integration._hydrate_token_from_entry(fake_entry) is None
 
-    def test_returns_none_when_cache_within_refresh_margin(
-        self, fake_entry: Any
-    ) -> None:
+    def test_returns_none_when_cache_within_refresh_margin(self, fake_entry: Any) -> None:
         # Within margin → effectively expired for our purposes
-        fake_entry.data[CONF_TOKEN_CACHE] = _valid_cache_dict(
-            expires_in=TOKEN_REFRESH_MARGIN_S - 1
-        )
+        fake_entry.data[CONF_TOKEN_CACHE] = _valid_cache_dict(expires_in=TOKEN_REFRESH_MARGIN_S - 1)
         assert integration._hydrate_token_from_entry(fake_entry) is None
 
-    def test_returns_none_when_cache_malformed_string(
-        self, fake_entry: Any
-    ) -> None:
+    def test_returns_none_when_cache_malformed_string(self, fake_entry: Any) -> None:
         fake_entry.data[CONF_TOKEN_CACHE] = "not a dict"
         assert integration._hydrate_token_from_entry(fake_entry) is None
 
@@ -91,9 +85,7 @@ class TestHydrateTokenFromEntry:
 
 
 class TestUpdateListenerReloadGuard:
-    async def test_data_only_update_does_not_reload(
-        self, fake_hass: Any, fake_entry: Any
-    ) -> None:
+    async def test_data_only_update_does_not_reload(self, fake_hass: Any, fake_entry: Any) -> None:
         # Setup the options snapshot the way async_setup_entry would.
         fake_hass.data[DOMAIN] = {
             f"{fake_entry.entry_id}_{HASS_DATA_OPTIONS_SNAPSHOT}": dict(fake_entry.options),
@@ -106,9 +98,7 @@ class TestUpdateListenerReloadGuard:
 
         assert fake_hass.config_entries.reload_calls == []
 
-    async def test_options_change_triggers_reload(
-        self, fake_hass: Any, fake_entry: Any
-    ) -> None:
+    async def test_options_change_triggers_reload(self, fake_hass: Any, fake_entry: Any) -> None:
         fake_hass.data[DOMAIN] = {
             f"{fake_entry.entry_id}_{HASS_DATA_OPTIONS_SNAPSHOT}": dict(fake_entry.options),
         }

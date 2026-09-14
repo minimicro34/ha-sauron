@@ -28,17 +28,18 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 | Entity | Unit | Description |
 |---|---|---|
 | Estimated water index | m³ | Physical reading + daily consumption since that reading; recommended for Energy Dashboard → Water |
-| Daily consumption | L | Latest daily consumption (normally J−1) |
+| Latest daily consumption | L | Most recent non-zero daily value actually published by SAUR |
 | Weekly consumption | m³ | Current week total reported by SAUR |
 | Monthly consumption | m³ | Current month total reported by SAUR |
 | Yearly consumption | m³ | Current year total reported by SAUR |
 
-- **8 diagnostic sensor entities**, grouped by Home Assistant in the device's **Diagnostic** section:
+- **9 diagnostic sensor entities**, grouped by Home Assistant in the device's **Diagnostic** section:
 
 | Diagnostic entity | Unit | Description |
 |---|---|---|
 | Water index | m³ | Latest physical meter reading reported by SAUR |
 | Last reading date | date | Date of the latest physical SAUR reading |
+| Latest daily consumption date | date | Date corresponding to the latest non-zero daily value published by SAUR |
 | Data age | h | Hours since the latest successful API poll |
 | Meter serial number | — | Physical meter serial number |
 | Meter manufacturer | — | Meter manufacturer reported by SAUR |
@@ -49,7 +50,8 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 - **Energy Dashboard compatible** — use `Estimated water index` as the water source.
 - **Automatic rebasing** — when SAUR publishes a new physical meter reading, it becomes the new baseline automatically.
 - **Historical reconstruction** — daily entries from each required month are accumulated after the physical reading date.
-- **Safe reconstruction** — if a required historical monthly payload cannot be retrieved or validated, the estimated index is unavailable instead of publishing an incomplete cumulative value.
+- **Transient-server retry** — HTTP 5xx responses are treated as temporary failures and the estimated-index refresh backs off at 2, 5 and then 10 minutes.
+- **Last-value preservation** — a temporary historical-month failure keeps the last valid estimated index instead of replacing it with an incomplete value.
 - **Re-authentication flow** — credentials can be updated without removing the integration.
 - **Repair Issues** — Home Assistant warns when data becomes stale.
 - **Options flow** — polling interval and stale-data threshold can be configured at runtime.
@@ -97,7 +99,7 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 | Polling interval | 4 h | How often SAURon refreshes the SAUR API |
 | Stale data threshold | 36 h | Age at which Home Assistant raises a Repair Issue |
 
-SAUR normally publishes consumption data once per day, so a short polling interval is generally unnecessary.
+SAUR generally publishes consumption data once per day, sometimes with a delay, so a short normal polling interval is usually unnecessary. Temporary HTTP 5xx failures affecting estimated-index reconstruction use a separate short retry sequence of 2, 5 and 10 minutes.
 
 ---
 
@@ -116,6 +118,8 @@ latest physical SAUR index
 For example, if SAUR reports a physical reading of `315.000 m³` on May 28, SAURon retrieves the daily consumption entries after May 28 and adds them to that baseline.
 
 When a later technician reading is published, SAURon automatically discards the previous reconstruction baseline and starts again from the new physical reading. The reading day itself is excluded from the accumulated consumption to avoid double counting.
+
+If a required historical monthly request temporarily fails with an HTTP 5xx response, SAURon keeps the last valid estimated index and retries after 2 minutes, then 5 minutes, then every 10 minutes until the monthly data is available again. Normal polling is restored automatically after recovery.
 
 ---
 
@@ -154,7 +158,7 @@ A complete example is available in [`lovelace_examples/water_dashboard.yaml`](lo
 
 It includes:
 
-- J−1, current week, month and year consumption;
+- daily, current week, month and year consumption;
 - 7-day and 30-day consumption graphs based on the estimated cumulative index;
 - the estimated and physical meter indexes;
 - optional `utility_meter` daily and monthly counters;
@@ -167,9 +171,9 @@ The example uses Mushroom, ApexCharts Card and card-mod.
 
 ## Data freshness
 
-SAUR publishes consumption data once per day, typically for J−1. The physical meter index can remain unchanged for much longer because it corresponds to an official meter reading rather than the daily consumption feed.
+SAUR generally publishes daily consumption data with a delay. The most recent available day is therefore not guaranteed to be yesterday. The physical meter index can remain unchanged for much longer because it corresponds to an official meter reading rather than the daily consumption feed.
 
-The `Daily consumption` sensor may therefore remain unchanged until a new daily value is published. This does not prevent the week, month and year totals from reflecting the data available from SAUR.
+The **Latest daily consumption** sensor deliberately shows the latest non-zero daily value actually available from SAUR, and the **Latest daily consumption date** diagnostic sensor shows which day that value belongs to. This prevents a delayed value from being presented as J−1.
 
 ---
 
@@ -184,9 +188,10 @@ The `Daily consumption` sensor may therefore remain unchanged until a new daily 
 - The SAUR API may be temporarily unavailable.
 - Check the Home Assistant logs and retry later.
 
-**Estimated water index is unavailable**
+**Estimated water index does not advance**
 
-- SAURon could not retrieve or validate one of the monthly payloads needed between the physical reading and the latest consumption date.
+- Check the latest daily consumption date: SAUR may not have published newer daily data yet.
+- If a required monthly request returns a temporary server error, SAURon keeps the last valid estimate and retries automatically.
 - The physical `Water index` and the normal daily/weekly/monthly/yearly sensors remain independent from the reconstructed index.
 
 **Stale data Repair Issue**
@@ -201,8 +206,26 @@ The `Daily consumption` sensor may therefore remain unchanged until a new daily 
 - The integration uses Home Assistant's bundled `aiohttp`; no external Python library is required.
 - The estimated cumulative index is reconstructed exclusively from daily `Day` entries returned by the monthly consumption endpoint.
 - Entries are included only when their date is strictly later than the latest physical reading date.
+- Malformed values outside the reconstruction date range are ignored; malformed required in-range data prevents publishing a newly calculated estimate.
+- HTTP 5xx responses from SAUR data endpoints are treated as transient server failures; HTTP 4xx handling remains separate.
 - A new physical reading automatically rebases the reconstruction.
 - Credentials remain stored in the Home Assistant config entry and are not sent to third parties by this integration.
+
+---
+
+## Development
+
+Development and pull-request guidelines are documented in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+The project includes a `Makefile` so the Python quality checks can be run locally with the same entry point used by GitHub Actions:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -e . pytest pytest-asyncio pytest-cov ruff
+make check
+```
+
+Useful individual targets include `make format`, `make format-check`, `make lint`, `make test`, and `make clean`. Hassfest and HACS validation continue to run in GitHub Actions.
 
 ---
 

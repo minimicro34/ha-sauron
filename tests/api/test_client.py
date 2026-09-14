@@ -115,7 +115,8 @@ class TestSauronApiClientAuth:
 
     async def test_missing_client_id_raises_api_error(self, mock_session: MagicMock) -> None:
         mock_session.post.return_value = _make_response(
-            200, {"token": {"access_token": "tok"}}  # no clientId
+            200,
+            {"token": {"access_token": "tok"}},  # no clientId
         )
         client = SauronApiClient(mock_session, "u", "p")
         # client_id will be empty string — validate this does not raise here
@@ -165,15 +166,11 @@ class TestTokenCacheLifecycle:
         assert client._cache is not None
         assert client._cache.expires_at >= before + DEFAULT_TOKEN_TTL_S - 1
 
-    async def test_authenticate_invokes_on_token_refreshed(
-        self, mock_session: MagicMock
-    ) -> None:
+    async def test_authenticate_invokes_on_token_refreshed(self, mock_session: MagicMock) -> None:
         mock_session.post.return_value = _make_response(200, _auth_with_ttl(3600))
         callback = AsyncMock()
 
-        client = SauronApiClient(
-            mock_session, "u", "p", on_token_refreshed=callback
-        )
+        client = SauronApiClient(mock_session, "u", "p", on_token_refreshed=callback)
         await client.async_authenticate()
 
         callback.assert_awaited_once()
@@ -195,9 +192,7 @@ class TestTokenCacheLifecycle:
         )
         assert client._is_token_valid() is False
 
-    async def test_is_token_valid_true_well_before_expiry(
-        self, mock_session: MagicMock
-    ) -> None:
+    async def test_is_token_valid_true_well_before_expiry(self, mock_session: MagicMock) -> None:
         client = SauronApiClient(
             mock_session,
             "u",
@@ -211,9 +206,7 @@ class TestTokenCacheLifecycle:
         )
         assert client._is_token_valid() is True
 
-    async def test_initial_token_skips_first_auth_call(
-        self, mock_session: MagicMock
-    ) -> None:
+    async def test_initial_token_skips_first_auth_call(self, mock_session: MagicMock) -> None:
         # GET succeeds with the initial token — no auth POST should occur
         mock_session.get.return_value = _make_response(200, {"indexValue": 1.0})
 
@@ -232,9 +225,7 @@ class TestTokenCacheLifecycle:
 
         mock_session.post.assert_not_called()
 
-    async def test_initial_token_expired_triggers_auth(
-        self, mock_session: MagicMock
-    ) -> None:
+    async def test_initial_token_expired_triggers_auth(self, mock_session: MagicMock) -> None:
         mock_session.post.return_value = _make_response(200, _auth_with_ttl(3600))
         mock_session.get.return_value = _make_response(200, {"indexValue": 1.0})
 
@@ -326,9 +317,7 @@ class TestTwoTier401Retry:
         with pytest.raises(SauronTransientError):
             await client.async_get_meter_last_index("SUB001")
 
-    async def test_get_network_error_raises_transient(
-        self, mock_session: MagicMock
-    ) -> None:
+    async def test_get_network_error_raises_transient(self, mock_session: MagicMock) -> None:
         mock_session.get.side_effect = aiohttp.ClientError("Connection reset")
 
         client = SauronApiClient(

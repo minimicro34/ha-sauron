@@ -42,7 +42,7 @@
           "stale_data_threshold_h": "Seuil d'alerte données obsolètes (heures)"
         },
         "data_description": {
-          "scan_interval_h": "Fréquence d'interrogation de l'API SAUR. SAUR met à jour les données une fois par jour (J-1), donc en dessous de 4h c'est rarement utile.",
+          "scan_interval_h": "Fréquence d'interrogation de l'API SAUR. SAUR publie généralement les données journalières avec un décalage, donc en dessous de 4h c'est rarement utile.",
           "stale_data_threshold_h": "Déclencher une alerte HA si la dernière lecture du compteur est plus ancienne que ce nombre d'heures."
         }
       }
@@ -53,7 +53,8 @@
       "last_index": { "name": "Index eau" },
       "estimated_index": { "name": "Index eau estimé" },
       "last_index_date": { "name": "Date dernier relevé" },
-      "daily_liters": { "name": "Consommation J-1" },
+      "daily_liters": { "name": "Dernière consommation journalière" },
+      "daily_date": { "name": "Date dernière consommation journalière" },
       "weekly_m3": { "name": "Consommation semaine courante" },
       "monthly_m3": { "name": "Consommation mensuelle" },
       "yearly_m3": { "name": "Consommation annuelle" },

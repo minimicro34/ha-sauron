@@ -42,7 +42,7 @@
           "stale_data_threshold_h": "Stale data alert threshold (hours)"
         },
         "data_description": {
-          "scan_interval_h": "How often to query the SAUR API. SAUR updates data once per day (J-1), so values below 4h are rarely useful.",
+          "scan_interval_h": "How often to query the SAUR API. SAUR usually publishes daily data with a delay, so values below 4h are rarely useful.",
           "stale_data_threshold_h": "Raise a Home Assistant alert if the latest meter reading is older than this many hours."
         }
       }
@@ -53,7 +53,8 @@
       "last_index": { "name": "Water index" },
       "estimated_index": { "name": "Estimated water index" },
       "last_index_date": { "name": "Last reading date" },
-      "daily_liters": { "name": "Yesterday consumption" },
+      "daily_liters": { "name": "Latest daily consumption" },
+      "daily_date": { "name": "Latest daily consumption date" },
       "weekly_m3": { "name": "Current week consumption" },
       "monthly_m3": { "name": "Monthly consumption" },
       "yearly_m3": { "name": "Yearly consumption" },
