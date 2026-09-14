@@ -42,7 +42,7 @@
           "stale_data_threshold_h": "Warnschwelle für veraltete Daten (Stunden)"
         },
         "data_description": {
-          "scan_interval_h": "Wie oft die SAUR-API abgefragt wird. SAUR aktualisiert Daten einmal täglich (J-1), daher sind Werte unter 4h selten sinnvoll.",
+          "scan_interval_h": "Wie oft die SAUR-API abgefragt wird. SAUR veröffentlicht tägliche Verbrauchsdaten normalerweise mit Verzögerung, daher sind Werte unter 4h selten sinnvoll.",
           "stale_data_threshold_h": "HA-Benachrichtigung auslösen, wenn der letzte Zählerstand älter als diese Stundenzahl ist."
         }
       }
@@ -53,7 +53,8 @@
       "last_index": { "name": "Wasserstand" },
       "estimated_index": { "name": "Geschätzter Wasserzählerstand" },
       "last_index_date": { "name": "Datum letzte Ablesung" },
-      "daily_liters": { "name": "Gestern Verbrauch" },
+      "daily_liters": { "name": "Letzter Tagesverbrauch" },
+      "daily_date": { "name": "Datum des letzten Tagesverbrauchs" },
       "weekly_m3": { "name": "Aktuelle Woche" },
       "monthly_m3": { "name": "Monatsverbrauch" },
       "yearly_m3": { "name": "Jahresverbrauch" },
