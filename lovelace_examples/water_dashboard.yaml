@@ -8,14 +8,15 @@
 # Adaptez-les si Home Assistant a genere des entity_id differents.
 #
 # SAURon :
-#   sensor.saur_water_meter_index_eau_estime          index cumulatif reconstruit
-#   sensor.saur_water_meter_index_eau                 dernier index physique SAUR
-#   sensor.saur_water_meter_date_dernier_releve       date du releve physique
-#   sensor.saur_water_meter_consommation_journaliere  J-1 en litres
-#   sensor.saur_water_meter_consommation_hebdomadaire semaine en cours
-#   sensor.saur_water_meter_consommation_mensuelle    mois en cours
-#   sensor.saur_water_meter_consommation_annuelle     annee en cours
-#   sensor.saur_water_meter_age_des_donnees           diagnostic
+#   sensor.saur_water_meter_index_eau_estime                         index cumulatif reconstruit
+#   sensor.saur_water_meter_index_eau                                dernier index physique SAUR
+#   sensor.saur_water_meter_date_dernier_releve                      date du releve physique
+#   sensor.saur_water_meter_derniere_consommation_journaliere        derniere valeur quotidienne disponible
+#   sensor.saur_water_meter_date_derniere_consommation_journaliere   date de cette valeur quotidienne
+#   sensor.saur_water_meter_consommation_semaine_courante            semaine en cours
+#   sensor.saur_water_meter_consommation_mensuelle                   mois en cours
+#   sensor.saur_water_meter_consommation_annuelle                    annee en cours
+#   sensor.saur_water_meter_age_des_donnees                          diagnostic
 #
 # utility_meter optionnels :
 #   sensor.water_daily
@@ -48,7 +49,7 @@ views:
                 tap_action:
                   action: more-info
               - type: entity
-                entity: sensor.saur_water_meter_consommation_journaliere
+                entity: sensor.saur_water_meter_derniere_consommation_journaliere
                 icon: mdi:water-outline
                 tap_action:
                   action: more-info
@@ -67,13 +68,13 @@ views:
             icon: mdi:chart-bar
 
           - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_consommation_journaliere
-            name: "Hier (J-1)"
+            entity: sensor.saur_water_meter_derniere_consommation_journaliere
+            name: "Derniere consommation journaliere"
             icon: mdi:water-outline
             layout: vertical
 
           - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_consommation_hebdomadaire
+            entity: sensor.saur_water_meter_consommation_semaine_courante
             name: "Cette semaine"
             icon: mdi:calendar-week
             layout: vertical
@@ -171,9 +172,16 @@ views:
               action: more-info
 
           - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_consommation_journaliere
+            entity: sensor.saur_water_meter_derniere_consommation_journaliere
             name: "Derniere consommation"
             icon: mdi:water
+            primary_info: state
+            secondary_info: name
+
+          - type: custom:mushroom-entity-card
+            entity: sensor.saur_water_meter_date_derniere_consommation_journaliere
+            name: "Date de cette consommation"
+            icon: mdi:calendar-clock
             primary_info: state
             secondary_info: name
 
@@ -249,6 +257,9 @@ views:
               - entity: sensor.saur_water_meter_date_dernier_releve
                 name: "Date du releve physique"
                 icon: mdi:calendar-check
+              - entity: sensor.saur_water_meter_date_derniere_consommation_journaliere
+                name: "Date derniere consommation journaliere"
+                icon: mdi:calendar-clock
               - entity: sensor.saur_water_meter_age_des_donnees
                 name: "Age des donnees"
                 icon: mdi:clock-outline
