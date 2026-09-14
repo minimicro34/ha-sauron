@@ -43,7 +43,7 @@
         },
         "data_description": {
           "scan_interval_h": "Con qué frecuencia consultar la API SAUR. SAUR suele publicar los datos diarios con retraso, por lo que valores inferiores a 4h raramente son útiles.",
-          "stale_data_threshold_h": "Generar una alerta de HA si la última lectura del contador es más antigua que este número de horas."
+          "stale_data_threshold_h": "Generar una alerta de Home Assistant si el último consumo diario publicado es más antiguo que este número de horas."
         }
       }
     }
@@ -59,6 +59,7 @@
       "monthly_m3": { "name": "Consumo mensual" },
       "yearly_m3": { "name": "Consumo anual" },
       "data_freshness_hours": { "name": "Antigüedad datos" },
+      "last_successful_poll": { "name": "Última consulta correcta" },
       "meter_serial": { "name": "Número de serie del contador" },
       "meter_brand": { "name": "Fabricante del contador" },
       "meter_model": { "name": "Modelo del contador" },
@@ -69,7 +70,7 @@
   "issues": {
     "stale_data": {
       "title": "Datos SAUR obsoletos",
-      "description": "La última lectura de la suscripción `{subscription_id}` tiene **{age_h} horas** de antigüedad."
+      "description": "El último consumo diario publicado de la suscripción `{subscription_id}` tiene **{age_h} horas** de antigüedad. Es posible que SAUR todavía no haya publicado nuevos datos de consumo."
     }
   }
 }
