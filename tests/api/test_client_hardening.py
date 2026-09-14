@@ -53,7 +53,9 @@ class TestAuthenticationEdgeCases:
         with pytest.raises(SauronAuthError, match="No access_token"):
             await client.async_authenticate()
 
-    async def test_invalid_expires_in_uses_default_ttl(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_invalid_expires_in_uses_default_ttl(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         session = MagicMock()
         session.post.return_value = _response(
             200,
