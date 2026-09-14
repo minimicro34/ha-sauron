@@ -116,7 +116,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         except Exception as err:
             _LOGGER.warning("Could not fetch monthly data for %s: %s", subscription_id, err)
 
-        daily_liters = _extract_daily_liters(raw_monthly)
+        daily_liters, daily_date = _extract_latest_daily(raw_monthly)
         weekly_m3 = _extract_week_total_from_monthly(raw_monthly, yesterday)
         monthly_m3 = _extract_period_m3(raw_monthly)
 
@@ -140,12 +140,15 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             latest_reading=data.latest_reading,
             estimated_index_m3=estimated_index_m3,
             daily_liters=daily_liters,
+            daily_date=daily_date,
             weekly_m3=weekly_m3,
             monthly_m3=monthly_m3,
             yearly_m3=yearly_m3,
         )
 
-        reading_age_h = (now.date() - enriched.latest_reading.reading_date).days * 24 + now.hour
+        reading_age_h = (
+            (now.date() - enriched.latest_reading.reading_date).days * 24 + now.hour
+        )
         issue_id = f"{ISSUE_STALE_DATA}_{self.config_entry.entry_id}"
         if reading_age_h > self._stale_threshold_h:
             async_create_issue(
@@ -380,11 +383,12 @@ def _has_nonzero_day(raw: dict[str, Any]) -> bool:
     )
 
 
-def _extract_daily_liters(raw: dict[str, Any]) -> float | None:
-    """Extract the latest dated non-zero daily consumption in litres."""
+def _extract_latest_daily(raw: dict[str, Any]) -> tuple[float | None, date | None]:
+    """Return the latest dated non-zero daily consumption and its date."""
     consumptions = raw.get("consumptions", [])
     if not isinstance(consumptions, list):
-        return None
+        return None, None
+
     latest: tuple[date, float] | None = None
     for item in consumptions:
         if not isinstance(item, dict) or item.get("rangeType") != "Day":
@@ -398,9 +402,16 @@ def _extract_daily_liters(raw: dict[str, Any]) -> float | None:
             continue
         if latest is None or entry_date > latest[0]:
             latest = (entry_date, value)
+
     if latest is None:
-        return None
-    return round(latest[1] * 1000, 1)
+        return None, None
+    return round(latest[1] * 1000, 1), latest[0]
+
+
+def _extract_daily_liters(raw: dict[str, Any]) -> float | None:
+    """Extract the latest dated non-zero daily consumption in litres."""
+    daily_liters, _ = _extract_latest_daily(raw)
+    return daily_liters
 
 
 def _extract_week_total_from_monthly(raw: dict[str, Any], ref_date: date) -> float | None:
@@ -479,15 +490,25 @@ def _parse_consumption(
                 daily_liters = round(delta_m3 * 1000, 1)
     elif isinstance(raw, dict):
         latest = raw
-        daily_raw = raw.get("dailyConsumption") or raw.get("daily_volume") or raw.get("volumeJour")
+        daily_raw = (
+            raw.get("dailyConsumption")
+            or raw.get("daily_volume")
+            or raw.get("volumeJour")
+        )
         if daily_raw is not None:
             daily_liters = round(float(daily_raw) * 1000, 1)
     else:
         raise SauronNoDataError("Empty consumption payload")
-    value_m3 = float(latest.get("index") or latest.get("value") or latest.get("volume") or 0.0)
-    raw_date = latest.get("date") or latest.get("readingDate") or latest.get("dateRelevee")
+    value_m3 = float(
+        latest.get("index") or latest.get("value") or latest.get("volume") or 0.0
+    )
+    raw_date = (
+        latest.get("date") or latest.get("readingDate") or latest.get("dateRelevee")
+    )
     try:
-        reading_date = date.fromisoformat(str(raw_date)[:10]) if raw_date else fetched_at.date()
+        reading_date = (
+            date.fromisoformat(str(raw_date)[:10]) if raw_date else fetched_at.date()
+        )
     except (ValueError, TypeError):
         reading_date = fetched_at.date()
     meter_info = MeterInfo(
@@ -502,4 +523,8 @@ def _parse_consumption(
         reading_date=reading_date,
         fetched_at=fetched_at,
     )
-    return SauronData(meter_info=meter_info, latest_reading=reading, daily_liters=daily_liters)
+    return SauronData(
+        meter_info=meter_info,
+        latest_reading=reading,
+        daily_liters=daily_liters,
+    )
