@@ -78,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * **device:** enrich device info + water dashboard improvements ([2462bbd](https://github.com/netnic0/ha-sauron/commit/2462bbde21232394ed0cd2393d10e26930fe7fd6))
 * **device:** enrich DeviceInfo with meter hardware metadata from delivery_points ([502c5d9](https://github.com/netnic0/ha-sauron/commit/502c5d94c6ac1002a16295bf9d6296ab48e0145a))
-* **lovelace:** add meter hardware info section to water dashboard ([46aac6a](https://github.com/netnic0/ha-sauron/commit/46aac6a35d5eba5ee2e8bd6e69fe7fd6))
+* **lovelace:** add meter hardware info section to water dashboard ([46aac6a](https://github.com/netnic0/ha-sauron/commit/46aac6a35d5eba5ee2e8bd87d6bf3d6e69fe7fd6))
 
 ## [0.3.0](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.7...ha-sauron-v0.3.0) (2026-06-17)
 
@@ -91,21 +91,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-* **integration:** address P0/P1 code review findings ([#23](https://github.com/netnic0/ha-sauron/commit/88470d677d981a5d4686966b5d98e2b56565edcd))
+* **integration:** address P0/P1 code review findings ([3b8b42c](https://github.com/netnic0/ha-sauron/commit/3b8b42cdda6765e7098f7d114d25776e5565c5ec))
+* **integration:** address P0/P1 code review findings ([88470d6](https://github.com/netnic0/ha-sauron/commit/88470d677d981a5d4686966b5d98e2b56565edcd))
 
 ## [0.2.6](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.5...ha-sauron-v0.2.6) (2026-06-17)
 
 ### Bug Fixes
 
 * **coordinator:** query J-2 for weekly data; take last non-zero day entry ([5debbe1](https://github.com/netnic0/ha-sauron/commit/5debbe1633c61c0306f56b7d60704bb774f20e34))
-* **coordinator:** query J-2 for weekly data; take last non-zero day entry ([ce6a5dd](https://github.com/netnic0/ha-sauron/commit/ce6a5dd3219a3402a16295bf9d6296ab48e0145a))
+* **coordinator:** query J-2 for weekly data; take last non-zero day entry ([ce6a5dd](https://github.com/netnic0/ha-sauron/commit/ce6a5dd3219a3402a0aa9ef1c1306e02fa880c45))
 
 ## [0.2.5](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.4...ha-sauron-v0.2.5) (2026-06-17)
 
 ### Bug Fixes
 
-* **sensor:** use TOTAL state_class for daily_liters ([fa09344](https://github.com/netnic0/ha-sauron/commit/fa09344cb3528c0ccafbffb6529e9060cd2af01))
-* **sensor:** use TOTAL state_class for daily_liters (device_class=WATER requires TOTAL or TOTAL_INCREASING) ([eb69be4](https://github.com/netnic0/ha-sauron/commit/eb69be40acd994eb48e0145a))
+* **sensor:** use TOTAL state_class for daily_liters ([fa09344](https://github.com/netnic0/ha-sauron/commit/fa093448cb3528c0ccafbffb6529e9060cd2af01))
+* **sensor:** use TOTAL state_class for daily_liters (device_class=WATER requires TOTAL or TOTAL_INCREASING) ([eb69be4](https://github.com/netnic0/ha-sauron/commit/eb69be40acd994ebd19a545bd06d15bc1cc47720))
 
 ## [0.2.4](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.3...ha-sauron-v0.2.4) (2026-06-16)
 
@@ -125,18 +126,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-* add MIT license, expand README, fix sensor regression ([6e298ce](https://github.com/netnic0/ha-sauron/commit/6e298ce3eaf90af3c2a16295bf9d6296ab48e0145a))
+* add MIT license, expand README, fix sensor regression ([6e298ce](https://github.com/netnic0/ha-sauron/commit/6e298ce3eaf90af76f38e2156424e30083727aca))
 * MIT license + expanded README + sensor date fix ([907d3e0](https://github.com/netnic0/ha-sauron/commit/907d3e01d3a9a595e67ac6a5a358aee53f3a024a))
 
 ## [0.2.1](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.0...ha-sauron-v0.2.1) (2026-06-16)
 
 ### Bug Fixes
 
-* **integration:** address P0/P1 code review findings ([d7756fd](https://github.com/netnic0/ha-sauron/commit/d7756fdeddbfc2ea83ceece8d445f6d8f00e5a07))
-* **integration:** address P0/P1 code review findings ([034b6fe](https://github.com/netnic0/ha-sauron/commit/034b6feef15aad068a8e5eae4f3c72408840a741))
+* **code-quality:** hotfix from post-v0.2.0 review ([d7756fd](https://github.com/netnic0/ha-sauron/commit/d7756fdeddbfc2ea83ceece8d445f6d8f00e5a07))
+* **code-quality:** hotfix from post-v0.2.0 review ([034b6fe](https://github.com/netnic0/ha-sauron/commit/034b6feef15aad068a8e5eae4f3c72408840a741))
 
 ## [0.2.0](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.1.0...ha-sauron-v0.2.0) (2026-06-16)
 
 ### Features
 
+* **coordinator:** compute daily_liters from consecutive index readings ([b2843bd](https://github.com/netnic0/ha-sauron/commit/b2843bdbe13651bf2f792ce9c970336c14420de3))
+* **pr1:** align API client with real SAUR field names + complete i18n + tests ([485827e](https://github.com/netnic0/ha-sauron/commit/485827edf061834053363f0430ff7448da0052f3))
+* **pr1:** align SAUR API client with real field names, complete i18n, add tests ([168fd36](https://github.com/netnic0/ha-sauron/commit/168fd36e7c461ecbefb24ee4b2c9ea9bdc612502))
 * **scaffold:** initial SAURon integration skeleton ([c354e1f](https://github.com/netnic0/ha-sauron/commit/c354e1f1f52218609a63a8cd2e2a6f986f5db143))
+
+### Bug Fixes
+
+* **ci:** sort manifest keys for hassfest + add brand PNG assets for HACS ([1b38c72](https://github.com/netnic0/ha-sauron/commit/1b38c72724d97ac3c2a92061aa9ea7171adc43af))
