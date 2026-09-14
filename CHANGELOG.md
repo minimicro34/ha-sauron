@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added a **Last successful poll** diagnostic timestamp so API health can be distinguished from delayed SAUR publication.
 - Added data-freshness tests covering daily-date age calculation and the new default stale threshold.
+- Expanded integration lifecycle, API client and coordinator tests to reach **94.36% global coverage**, with `__init__.py` and the API client fully covered.
 
 ### Changed
 
@@ -20,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The latest known daily consumption and its date are kept when a temporary monthly-data failure prevents fresh enrichment.
 - Updated English, French, German and Spanish wording to distinguish data publication age from polling health.
 - Bumped the integration manifest version to **0.5.2**.
+- Raised the enforced minimum global test coverage from **80% to 90%**; `make check` and CI now fail below that threshold.
 
 ## [0.5.1](https://github.com/minimicro34/ha-sauron/compare/v0.5.0...v0.5.1) - 2026-09-14
 
