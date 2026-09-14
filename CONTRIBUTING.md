@@ -75,7 +75,11 @@ Run the complete test suite with coverage:
 make test
 ```
 
-The configured coverage threshold must remain satisfied.
+The project enforces a **minimum global test coverage of 90%**. `make test`, `make check`, and the Python quality CI job fail if coverage drops below that threshold.
+
+New or changed behavior should be covered by meaningful tests. Do not add tests solely to satisfy the percentage: prefer exercising functional paths, error handling, recovery behavior, and relevant edge cases.
+
+The current coverage may be higher than the enforced minimum; contributors should preserve or improve useful coverage whenever practical.
 
 ---
 
@@ -100,6 +104,7 @@ Before opening a Pull Request:
 - update your branch from the latest `main`;
 - run `make format` when code formatting changed;
 - run `make check`;
+- keep global test coverage at or above **90%**;
 - update `CHANGELOG.md` for user-visible changes;
 - update the README or other documentation when appropriate.
 
@@ -164,6 +169,7 @@ https://developers.home-assistant.io/
 Contributions should:
 
 - pass `make check`;
+- keep global test coverage at or above **90%**;
 - include tests when appropriate;
 - keep translations synchronized;
 - follow the existing project style.
