@@ -113,4 +113,3 @@ _sensor.SensorDeviceClass = object  # type: ignore[attr-defined]
 _sensor.SensorEntity = object  # type: ignore[attr-defined]
 _sensor.SensorEntityDescription = dict  # type: ignore[attr-defined]
 _sensor.SensorStateClass = object  # type: ignore[attr-defined]
-

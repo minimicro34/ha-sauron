@@ -74,9 +74,7 @@ class SauronApiClient:
             "isRecaptchaV3": True,
             "captchaToken": "true",
         }
-        async with self._session.post(
-            f"{_BASE_URL}{_AUTH_ENDPOINT}", json=payload
-        ) as resp:
+        async with self._session.post(f"{_BASE_URL}{_AUTH_ENDPOINT}", json=payload) as resp:
             if resp.status in (401, 403):
                 raise SauronAuthError("Invalid SAUR credentials")
             if resp.status != 200:
@@ -214,9 +212,7 @@ class SauronApiClient:
         path = _CONSUMPTIONS_WEEKLY_ENDPOINT.format(section_id=section_id)
         return await self._get(path, params={"year": year, "month": month, "day": day})
 
-    async def async_get_monthly(
-        self, section_id: str, year: int, month: int
-    ) -> dict[str, Any]:
+    async def async_get_monthly(self, section_id: str, year: int, month: int) -> dict[str, Any]:
         path = _CONSUMPTIONS_MONTHLY_ENDPOINT.format(section_id=section_id)
         return await self._get(path, params={"year": year, "month": month})
 

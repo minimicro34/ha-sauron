@@ -15,8 +15,7 @@ from custom_components.sauron.coordinator import (
 def _month(*entries: tuple[str, object]) -> dict[str, object]:
     return {
         "consumptions": [
-            {"startDate": day, "value": value, "rangeType": "Day"}
-            for day, value in entries
+            {"startDate": day, "value": value, "rangeType": "Day"} for day, value in entries
         ]
     }
 

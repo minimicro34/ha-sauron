@@ -41,9 +41,7 @@ _STEP_USER_SCHEMA = vol.Schema(
 )
 
 
-async def _probe_saur(
-    session: aiohttp.ClientSession, login: str, password: str
-) -> tuple[str, str]:
+async def _probe_saur(session: aiohttp.ClientSession, login: str, password: str) -> tuple[str, str]:
     """Authenticate and discover (client_id, section_subscription_id)."""
     client = SauronApiClient(session, login, password)
     await client.async_authenticate()
@@ -81,9 +79,7 @@ class SauronConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
     MINOR_VERSION = 1
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -119,9 +115,7 @@ class SauronConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_reauth(
-        self, entry_data: dict[str, Any]
-    ) -> ConfigFlowResult:
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
         """Handle re-authentication when credentials become invalid."""
         return await self.async_step_reauth_confirm()
 
@@ -162,9 +156,7 @@ class SauronConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="reauth_confirm",
             data_schema=_STEP_USER_SCHEMA,
             errors=errors,
-            description_placeholders={
-                "subscription_id": entry.data.get(CONF_SUBSCRIPTION_ID, "")
-            },
+            description_placeholders={"subscription_id": entry.data.get(CONF_SUBSCRIPTION_ID, "")},
         )
 
     @staticmethod
@@ -176,9 +168,7 @@ class SauronConfigFlow(ConfigFlow, domain=DOMAIN):
 class SauronOptionsFlow(OptionsFlow):
     """Options flow for SAURon — polling interval and alert thresholds."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
@@ -194,9 +184,7 @@ class SauronOptionsFlow(OptionsFlow):
                 ),
                 vol.Optional(
                     OPT_STALE_DATA_THRESHOLD_H,
-                    default=options.get(
-                        OPT_STALE_DATA_THRESHOLD_H, DEFAULT_STALE_DATA_THRESHOLD_H
-                    ),
+                    default=options.get(OPT_STALE_DATA_THRESHOLD_H, DEFAULT_STALE_DATA_THRESHOLD_H),
                 ): vol.All(
                     vol.Coerce(int),
                     vol.Range(

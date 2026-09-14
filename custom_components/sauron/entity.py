@@ -30,8 +30,8 @@ class SauronMeterEntity(CoordinatorEntity["SauronCoordinator"]):
         info = coordinator.data.meter_info if coordinator.data else None
         manufacturer = (info.meter_brand if info and info.meter_brand else None) or "SAUR"
         model = (info.meter_model if info and info.meter_model else None) or "Smart Meter"
-        serial = (info.meter_serial if info and info.meter_serial else None)
-        area = (info.address if info and info.address else None)
+        serial = info.meter_serial if info and info.meter_serial else None
+        area = info.address if info and info.address else None
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, subscription_id)},
             name="SAUR Water Meter",

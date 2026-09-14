@@ -55,7 +55,7 @@ This is a no‑op behavior change and can ship in the same PR — it just preced
 @dataclass(frozen=True, slots=True)
 class TokenCache:
     access_token: str
-    expires_at: float          # epoch seconds (time.time())
+    expires_at: float  # epoch seconds (time.time())
     client_id: str
     default_section_id: str
 ```
@@ -82,17 +82,14 @@ def __init__(
     self._password = password
     self._cache: TokenCache | None = initial_token
     self._on_token_refreshed = on_token_refreshed
-    self._auth_lock: asyncio.Lock = asyncio.Lock()   # ← RC‑2: now, not deferred
+    self._auth_lock: asyncio.Lock = asyncio.Lock()  # ← RC‑2: now, not deferred
 ```
 
 `_is_token_valid()` becomes expiry‑aware:
 
 ```python
 def _is_token_valid(self) -> bool:
-    return (
-        self._cache is not None
-        and time.time() < self._cache.expires_at - TOKEN_REFRESH_MARGIN_S
-    )
+    return self._cache is not None and time.time() < self._cache.expires_at - TOKEN_REFRESH_MARGIN_S
 ```
 
 `_ensure_token()` — **double‑checked pattern under `asyncio.Lock`** (RC‑2):
@@ -135,7 +132,9 @@ async def async_authenticate(self) -> None:
         await self._on_token_refreshed(self._cache)
     _LOGGER.debug(
         "SAUR authenticated: client_id=%s, default_section_id=%s, ttl_s=%d",
-        self._cache.client_id, self._cache.default_section_id, ttl_s,
+        self._cache.client_id,
+        self._cache.default_section_id,
+        ttl_s,
     )
 ```
 
@@ -196,6 +195,7 @@ Exported via `api/__init__.py` alongside the existing exceptions.
 ```python
 # const.py — new
 HASS_DATA_OPTIONS_SNAPSHOT: Final[str] = "options_snapshot"
+
 
 # __init__.py
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -316,9 +316,9 @@ except Exception as err:
 Add to `const.py`:
 
 ```python
-CONF_TOKEN_CACHE: Final[str] = "_token_cache"          # underscore prefix = internal data
-DEFAULT_TOKEN_TTL_S: Final[int] = 3600                 # fallback when expires_in absent
-TOKEN_REFRESH_MARGIN_S: Final[int] = 300               # refresh 5 min early (clock-skew margin)
+CONF_TOKEN_CACHE: Final[str] = "_token_cache"  # underscore prefix = internal data
+DEFAULT_TOKEN_TTL_S: Final[int] = 3600  # fallback when expires_in absent
+TOKEN_REFRESH_MARGIN_S: Final[int] = 300  # refresh 5 min early (clock-skew margin)
 HASS_DATA_OPTIONS_SNAPSHOT: Final[str] = "options_snapshot"  # reload-guard key suffix
 ```
 

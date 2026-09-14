@@ -97,9 +97,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
 
         raw_monthly: dict[str, Any] = {}
         try:
-            raw_monthly = await self._client.async_get_monthly(
-                subscription_id, now.year, now.month
-            )
+            raw_monthly = await self._client.async_get_monthly(subscription_id, now.year, now.month)
             if not _has_nonzero_day(raw_monthly):
                 prev = now.replace(day=1) - timedelta(days=1)
                 raw_monthly = await self._client.async_get_monthly(
@@ -146,9 +144,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             yearly_m3=yearly_m3,
         )
 
-        reading_age_h = (
-            (now.date() - enriched.latest_reading.reading_date).days * 24 + now.hour
-        )
+        reading_age_h = (now.date() - enriched.latest_reading.reading_date).days * 24 + now.hour
         issue_id = f"{ISSUE_STALE_DATA}_{self.config_entry.entry_id}"
         if reading_age_h > self._stale_threshold_h:
             async_create_issue(
@@ -182,9 +178,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             except SauronAuthError as err:
                 raise ConfigEntryAuthFailed from err
             except SauronTransientError as err:
-                return self._estimated_index_transient_failure(
-                    subscription_id, year, month, err
-                )
+                return self._estimated_index_transient_failure(subscription_id, year, month, err)
             except Exception as err:
                 _LOGGER.warning(
                     "Could not build estimated water index for %s: monthly data "
@@ -376,9 +370,7 @@ def _estimate_index_from_monthly(
 def _has_nonzero_day(raw: dict[str, Any]) -> bool:
     """Return True if the response contains at least one Day entry with value > 0."""
     return any(
-        isinstance(c, dict)
-        and c.get("rangeType") == "Day"
-        and _safe_float(c.get("value")) > 0
+        isinstance(c, dict) and c.get("rangeType") == "Day" and _safe_float(c.get("value")) > 0
         for c in raw.get("consumptions", [])
     )
 
@@ -445,9 +437,7 @@ def _extract_week_total_m3(raw: dict[str, Any]) -> float | None:
     values = [
         _safe_float(c.get("value"))
         for c in consumptions
-        if isinstance(c, dict)
-        and c.get("rangeType") == "Day"
-        and _safe_float(c.get("value")) > 0
+        if isinstance(c, dict) and c.get("rangeType") == "Day" and _safe_float(c.get("value")) > 0
     ]
     return round(sum(values), 3) if values else None
 
@@ -479,9 +469,7 @@ def _parse_consumption(
         latest = raw[-1]
         if len(raw) >= 2:
             prev = raw[-2]
-            prev_val = float(
-                prev.get("index") or prev.get("value") or prev.get("volume") or 0.0
-            )
+            prev_val = float(prev.get("index") or prev.get("value") or prev.get("volume") or 0.0)
             curr_val = float(
                 latest.get("index") or latest.get("value") or latest.get("volume") or 0.0
             )
@@ -490,25 +478,15 @@ def _parse_consumption(
                 daily_liters = round(delta_m3 * 1000, 1)
     elif isinstance(raw, dict):
         latest = raw
-        daily_raw = (
-            raw.get("dailyConsumption")
-            or raw.get("daily_volume")
-            or raw.get("volumeJour")
-        )
+        daily_raw = raw.get("dailyConsumption") or raw.get("daily_volume") or raw.get("volumeJour")
         if daily_raw is not None:
             daily_liters = round(float(daily_raw) * 1000, 1)
     else:
         raise SauronNoDataError("Empty consumption payload")
-    value_m3 = float(
-        latest.get("index") or latest.get("value") or latest.get("volume") or 0.0
-    )
-    raw_date = (
-        latest.get("date") or latest.get("readingDate") or latest.get("dateRelevee")
-    )
+    value_m3 = float(latest.get("index") or latest.get("value") or latest.get("volume") or 0.0)
+    raw_date = latest.get("date") or latest.get("readingDate") or latest.get("dateRelevee")
     try:
-        reading_date = (
-            date.fromisoformat(str(raw_date)[:10]) if raw_date else fetched_at.date()
-        )
+        reading_date = date.fromisoformat(str(raw_date)[:10]) if raw_date else fetched_at.date()
     except (ValueError, TypeError):
         reading_date = fetched_at.date()
     meter_info = MeterInfo(

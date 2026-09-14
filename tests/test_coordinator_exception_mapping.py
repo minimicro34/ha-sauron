@@ -48,9 +48,7 @@ class TestExceptionMappingPrimary:
 
     async def test_auth_error_raises_config_entry_auth_failed(self) -> None:
         client = AsyncMock()
-        client.async_get_meter_last_index = AsyncMock(
-            side_effect=SauronAuthError("bad creds")
-        )
+        client.async_get_meter_last_index = AsyncMock(side_effect=SauronAuthError("bad creds"))
 
         coordinator = _make_coordinator(client)
         with pytest.raises(ConfigEntryAuthFailed):
@@ -107,9 +105,7 @@ class TestExceptionMappingYearlyEnrichment:
         client = AsyncMock()
         client.async_get_meter_last_index = AsyncMock(return_value=_ok_index_payload())
         client.async_get_monthly = AsyncMock(return_value={"consumptions": []})
-        client.async_get_yearly = AsyncMock(
-            side_effect=SauronTransientError("transient yearly")
-        )
+        client.async_get_yearly = AsyncMock(side_effect=SauronTransientError("transient yearly"))
 
         coordinator = _make_coordinator(client)
         data = await coordinator._async_update_data()
