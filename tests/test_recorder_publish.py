@@ -78,7 +78,8 @@ def test_recorder_legacy_anchor_without_ledger_does_not_write():
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
         coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 11))
-    modules["homeassistant.components.recorder.statistics"].async_add_external_statistics.assert_not_called()
+    recorder = modules["homeassistant.components.recorder.statistics"]
+    recorder.async_add_external_statistics.assert_not_called()
     hass.config_entries.async_update_entry.assert_not_called()
 
 
