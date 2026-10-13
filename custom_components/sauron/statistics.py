@@ -78,24 +78,34 @@ def merge_daily_history(
     Previously imported days are retained across physical meter readings.
     Existing values are only changed if SAUR supplies a corrected day again.
     """
-    if existing:
-        last = max(date.fromisoformat(key) for key in existing)
-        # The previous ledger date, not the new physical reading, is the
-        # continuity anchor. The coordinator must fetch every month since it.
-        start = last
-    else:
-        start = reading_date
+    if not existing:
+        rows = build_daily_statistics(payloads, reading_date, through_date, "UTC")
+        return {row["start"].date().isoformat(): row["state"] for row in rows}
 
-    rows = build_daily_statistics(payloads, start, through_date, "UTC")
-    merged = dict(existing)
-    for row in rows:
-        day = row["start"].date().isoformat()
-        merged[day] = row["state"]
-    if merged:
-        ordered = sorted(date.fromisoformat(key) for key in merged)
-        if any(right - left != timedelta(days=1) for left, right in pairwise(ordered)):
-            raise ValueError("Incomplete SAUR daily history: missing dates")
-    return merged
+    last = max(date.fromisoformat(key) for key in existing)
+    # Re-evaluate a bounded overlap for late corrections without discarding
+    # earlier values that SAUR no longer includes in its monthly response.
+    start = max(min(date.fromisoformat(key) for key in existing), last - timedelta(days=35))
+    start -= timedelta(days=1)
+    values = dict(existing)
+    for payload in payloads:
+        for item in payload.get("consumptions", []):
+            if not isinstance(item, dict) or item.get("rangeType") != "Day":
+                continue
+            day = date.fromisoformat(str(item["startDate"])[:10])
+            if start < day <= through_date:
+                volume = float(item["value"])
+                if volume < 0 or not float("-inf") < volume < float("inf"):
+                    raise ValueError("Invalid SAUR daily volume")
+                key = day.isoformat()
+                if key in values and values[key] != volume:
+                    values[key] = volume
+                elif key not in values:
+                    values[key] = volume
+    ordered = sorted(date.fromisoformat(key) for key in values)
+    if any(right - left != timedelta(days=1) for left, right in pairwise(ordered)):
+        raise ValueError("Incomplete SAUR daily history: missing dates")
+    return values
 
 
 def build_ledger_statistics(
