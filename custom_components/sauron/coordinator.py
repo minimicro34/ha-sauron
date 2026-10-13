@@ -253,35 +253,32 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             return
         if not self.hass.is_running or self._monthly_index_payloads is None:
             return
-        # Persist the original baseline in entry.data so a restart cannot reset it.
-        anchor_key = "_dated_statistics_anchor"
-        persisted_anchor = self.config_entry.data.get(anchor_key)
-        if persisted_anchor is not None and persisted_anchor != reading_date.isoformat():
+        # A legacy anchor has no persisted day-by-day ledger. Do not silently
+        # restart cumulative statistics when upgrading from an earlier preview.
+        ledger_key = "_dated_statistics_daily_ledger"
+        existing = self.config_entry.data.get(ledger_key)
+        if existing is None and "_dated_statistics_anchor" in self.config_entry.data:
             _LOGGER.warning(
-                "Physical reading date changed (%s -> %s); dated statistics paused",
-                persisted_anchor,
-                reading_date,
+                "Legacy Recorder baseline without daily ledger; historical imports paused"
             )
             return
         try:
             from homeassistant.components.recorder.models.statistics import StatisticMeanType
             from homeassistant.components.recorder.statistics import async_add_external_statistics
 
-            from .statistics import build_daily_statistics
+            from .statistics import build_ledger_statistics, merge_daily_history
 
-            rows = build_daily_statistics(
+            ledger = merge_daily_history(
+                existing or {},
                 self._monthly_index_payloads,
                 reading_date,
                 through_date,
-                self.hass.config.time_zone,
             )
+            if not ledger:
+                return
+            rows = build_ledger_statistics(ledger, self.hass.config.time_zone)
             if not rows:
                 return
-            if persisted_anchor is None:
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry,
-                    data={**self.config_entry.data, anchor_key: reading_date.isoformat()},
-                )
             subscription_id = self.config_entry.data[CONF_SUBSCRIPTION_ID]
             statistic_id = f"{DOMAIN}:daily_water_{self.config_entry.entry_id.lower()}"
             async_add_external_statistics(
@@ -297,6 +294,11 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                 },
                 rows,
             )
+            if ledger != existing:
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data={**self.config_entry.data, ledger_key: ledger},
+                )
         except (ImportError, ValueError, RuntimeError) as err:
             _LOGGER.warning("Could not queue SAUR dated statistics: %s", err)
 
