@@ -182,6 +182,9 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             yearly_m3=yearly_m3,
         )
 
+        await self._async_refresh_recorder_history(
+            subscription_id, data.latest_reading.reading_date, yesterday
+        )
         self._publish_dated_statistics(data.latest_reading.reading_date, yesterday)
 
         data_age_h = _data_age_hours(enriched.daily_date, now)
@@ -245,6 +248,35 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self._estimated_index_recovered(subscription_id)
         self._monthly_index_payloads = monthly_payloads
         return estimated
+
+    async def _async_refresh_recorder_history(
+        self, subscription_id: str, reading_date: date, through_date: date
+    ) -> None:
+        """Fetch all months needed to bridge delayed days across meter readings."""
+        if not self.config_entry.options.get(OPT_ENABLE_DATED_STATISTICS, False):
+            return
+        self._monthly_index_payloads = None
+        if not self.hass.is_running:
+            return
+        ledger = self.config_entry.data.get("_dated_statistics_daily_ledger")
+        if ledger is None and "_dated_statistics_anchor" in self.config_entry.data:
+            return
+        try:
+            start = max(date.fromisoformat(day) for day in ledger) if ledger else reading_date
+            if start >= through_date:
+                return
+            payloads = []
+            for year, month in _iter_months(start, through_date):
+                payloads.append(
+                    await self._client.async_get_monthly(subscription_id, year, month)
+                )
+        except (SauronAuthError, SauronTransientError, SauronNoDataError, ValueError) as err:
+            _LOGGER.warning("SAUR Recorder history fetch postponed: %s", err)
+            return
+        except Exception as err:
+            _LOGGER.warning("SAUR Recorder history unavailable: %s", err)
+            return
+        self._monthly_index_payloads = payloads
 
     def _publish_dated_statistics(self, reading_date: date, through_date: date) -> None:
         """Queue backdated Recorder rows, without touching existing index entities."""
