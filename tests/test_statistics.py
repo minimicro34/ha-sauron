@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from custom_components.sauron.statistics import build_daily_statistics
+from custom_components.sauron.statistics import (\n    build_daily_statistics,\n    build_ledger_statistics,\n    merge_daily_history,\n)
 
 
 def _payload(*values: tuple[str, float]) -> dict:
@@ -117,3 +117,26 @@ def test_invalid_cumulative_baseline_is_rejected() -> None:
             "Europe/Paris",
             initial_sum=float("nan"),
         )
+
+
+def test_corrected_day_recalculates_later_sums() -> None:
+    existing = {"2026-10-11": 0.9, "2026-10-12": 0.2}
+    updated = merge_daily_history(
+        existing,
+        [_payload(("2026-10-11", 1.1), ("2026-10-12", 0.2))],
+        date(2026, 10, 10),
+        date(2026, 10, 12),
+    )
+    assert updated["2026-10-11"] == 1.1
+    assert [row["sum"] for row in build_ledger_statistics(updated, "UTC")] == [
+        1.1,
+        1.3,
+    ]
+
+
+def test_correction_does_not_erase_unreturned_existing_days() -> None:
+    existing = {"2026-10-11": 0.9, "2026-10-12": 0.2}
+    assert merge_daily_history(
+        existing, [_payload(("2026-10-12", 0.2))],
+        date(2026, 10, 10), date(2026, 10, 12),
+    ) == existing
