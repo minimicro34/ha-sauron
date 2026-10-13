@@ -84,6 +84,7 @@ class SauronData:
     """Date of the most recent non-zero daily consumption published by SAUR."""
 
     weekly_m3: float | None = None
+    previous_week_m3: float | None = None
     monthly_m3: float | None = None
     yearly_m3: float | None = None
 
