@@ -80,8 +80,8 @@ def merge_daily_history(
     """
     if existing:
         last = max(date.fromisoformat(key) for key in existing)
-        if reading_date > last:
-            raise ValueError("Missing SAUR history between physical readings")
+        # The previous ledger date, not the new physical reading, is the
+        # continuity anchor. The coordinator must fetch every month since it.
         start = last
     else:
         start = reading_date
