@@ -1,6 +1,6 @@
 {
   "name": "SAURon development",
-  "image": "mcr.microsoft.com/devcontainers/python:3.14",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "postCreateCommand": "python -m pip install -r requirements-dev.txt",
   "customizations": {
     "vscode": {
