@@ -95,3 +95,25 @@ def test_missing_first_day_prevents_partial_import() -> None:
             date(2026, 10, 12),
             "Europe/Paris",
         )
+
+
+def test_new_physical_reading_keeps_previous_cumulative_sum() -> None:
+    rows = build_daily_statistics(
+        [_payload(("2026-10-11", 0.2), ("2026-10-12", 0.3))],
+        date(2026, 10, 10),
+        date(2026, 10, 12),
+        "Europe/Paris",
+        initial_sum=120.5,
+    )
+    assert [row["sum"] for row in rows] == [120.7, 121.0]
+
+
+def test_invalid_cumulative_baseline_is_rejected() -> None:
+    with pytest.raises(ValueError, match="Invalid initial cumulative sum"):
+        build_daily_statistics(
+            [_payload(("2026-10-11", 0.2))],
+            date(2026, 10, 10),
+            date(2026, 10, 11),
+            "Europe/Paris",
+            initial_sum=float("nan"),
+        )
