@@ -52,6 +52,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self._client = client
         self._normal_update_interval = normal_interval
         self._estimated_index_failures = 0
+        self._monthly_index_payloads: list[dict[str, Any]] | None = None
         self._stale_threshold_h = entry.options.get(
             OPT_STALE_DATA_THRESHOLD_H, DEFAULT_STALE_DATA_THRESHOLD_H
         )
@@ -178,6 +179,8 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             yearly_m3=yearly_m3,
         )
 
+        self._publish_dated_statistics(data.latest_reading.reading_date, yesterday)
+
         data_age_h = _data_age_hours(enriched.daily_date, now)
         issue_id = f"{ISSUE_STALE_DATA}_{self.config_entry.entry_id}"
         if data_age_h is not None and data_age_h > self._stale_threshold_h:
@@ -205,6 +208,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             self._estimated_index_recovered(subscription_id)
             return round(reading.value_m3, 3)
 
+        self._monthly_index_payloads = None
         monthly_payloads: list[dict[str, Any]] = []
         for year, month in _iter_months(reading.reading_date, through_date):
             try:
@@ -236,7 +240,44 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             return self._previous_estimated_index()
 
         self._estimated_index_recovered(subscription_id)
+        self._monthly_index_payloads = monthly_payloads
         return estimated
+
+    def _publish_dated_statistics(self, reading_date: date, through_date: date) -> None:
+        """Queue backdated Recorder rows, without touching existing index entities."""
+        if not self.hass.is_running or self._monthly_index_payloads is None:
+            return
+        try:
+            from homeassistant.components.recorder.statistics import async_add_external_statistics
+            from homeassistant.components.recorder.models.statistics import StatisticMeanType
+
+            from .statistics import build_daily_statistics
+
+            rows = build_daily_statistics(
+                self._monthly_index_payloads,
+                reading_date,
+                through_date,
+                self.hass.config.time_zone,
+            )
+            if not rows:
+                return
+            subscription_id = self.config_entry.data[CONF_SUBSCRIPTION_ID]
+            statistic_id = f"{DOMAIN}:daily_water_{self.config_entry.entry_id.lower()}"
+            async_add_external_statistics(
+                self.hass,
+                {
+                    "statistic_id": statistic_id,
+                    "source": DOMAIN,
+                    "name": f"SAURon dated water ({subscription_id})",
+                    "unit_of_measurement": "m³",
+                    "unit_class": "volume",
+                    "has_sum": True,
+                    "mean_type": StatisticMeanType.NONE,
+                },
+                rows,
+            )
+        except (ImportError, ValueError, RuntimeError) as err:
+            _LOGGER.warning("Could not queue SAUR dated statistics: %s", err)
 
     def _previous_estimated_index(self) -> float | None:
         """Return the last valid estimate, when one is available."""
