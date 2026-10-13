@@ -39,33 +39,67 @@
         "title": "Options SAURon",
         "data": {
           "scan_interval_h": "Intervalle de polling (heures)",
-          "stale_data_threshold_h": "Seuil d'alerte données obsolètes (heures)"
+          "stale_data_threshold_h": "Seuil d'alerte données obsolètes (heures)",
+          "enable_dated_statistics": "Activer les statistiques Recorder historiques (expérimental)"
         },
         "data_description": {
           "scan_interval_h": "Fréquence d'interrogation de l'API SAUR. SAUR publie généralement les données journalières avec un décalage, donc en dessous de 4h c'est rarement utile.",
-          "stale_data_threshold_h": "Déclencher une alerte HA si la dernière consommation journalière publiée est plus ancienne que ce nombre d'heures."
+          "stale_data_threshold_h": "Déclencher une alerte HA si la dernière consommation journalière publiée est plus ancienne que ce nombre d'heures.",
+          "enable_dated_statistics": "Écrire l'historique journalier reconstitué dans Recorder. Les imports s'arrêtent si des jours SAUR manquent ou si le relevé physique change."
         }
       }
     }
   },
   "entity": {
     "sensor": {
-      "last_index": { "name": "Index eau" },
-      "estimated_index": { "name": "Index eau estimé" },
-      "last_index_date": { "name": "Date dernier relevé" },
-      "daily_liters": { "name": "Dernière consommation journalière" },
-      "daily_date": { "name": "Date dernière consommation journalière" },
-      "weekly_m3": { "name": "Consommation semaine courante" },
-      "previous_week_m3": { "name": "Consommation semaine précédente" },
-      "monthly_m3": { "name": "Consommation mensuelle" },
-      "yearly_m3": { "name": "Consommation annuelle" },
-      "data_freshness_hours": { "name": "Âge des données" },
-      "last_successful_poll": { "name": "Dernier polling réussi" },
-      "meter_serial": { "name": "Numéro de série du compteur" },
-      "meter_brand": { "name": "Fabricant du compteur" },
-      "meter_model": { "name": "Modèle du compteur" },
-      "meter_diameter": { "name": "Diamètre du compteur" },
-      "telereleve_tech": { "name": "Technologie de télérelève" }
+      "last_index": {
+        "name": "Index eau"
+      },
+      "estimated_index": {
+        "name": "Index eau estimé"
+      },
+      "last_index_date": {
+        "name": "Date dernier relevé"
+      },
+      "daily_liters": {
+        "name": "Dernière consommation journalière"
+      },
+      "daily_date": {
+        "name": "Date dernière consommation journalière"
+      },
+      "weekly_m3": {
+        "name": "Consommation semaine courante"
+      },
+      "previous_week_m3": {
+        "name": "Consommation semaine précédente"
+      },
+      "monthly_m3": {
+        "name": "Consommation mensuelle"
+      },
+      "yearly_m3": {
+        "name": "Consommation annuelle"
+      },
+      "data_freshness_hours": {
+        "name": "Âge des données"
+      },
+      "last_successful_poll": {
+        "name": "Dernier polling réussi"
+      },
+      "meter_serial": {
+        "name": "Numéro de série du compteur"
+      },
+      "meter_brand": {
+        "name": "Fabricant du compteur"
+      },
+      "meter_model": {
+        "name": "Modèle du compteur"
+      },
+      "meter_diameter": {
+        "name": "Diamètre du compteur"
+      },
+      "telereleve_tech": {
+        "name": "Technologie de télérelève"
+      }
     }
   },
   "issues": {
