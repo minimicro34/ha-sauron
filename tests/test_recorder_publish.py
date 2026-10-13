@@ -173,3 +173,38 @@ async def test_failed_backfill_preserves_existing_ledger() -> None:
     modules["homeassistant.components.recorder.statistics"].async_add_external_statistics.assert_not_called()
     hass.config_entries.async_update_entry.assert_not_called()
     assert entry.data["_dated_statistics_daily_ledger"] == {"2026-09-30": 0.5}
+
+
+def test_unchanged_ledger_skips_recorder_import() -> None:
+    coordinator, _, hass = _coordinator(
+        ledger={"2026-10-11": 0.9, "2026-10-12": 0.2},
+        payload=[{"consumptions": [
+            {"rangeType": "Day", "startDate": "2026-10-11", "value": 0.9},
+            {"rangeType": "Day", "startDate": "2026-10-12", "value": 0.2},
+        ]}],
+    )
+    modules = _recorder_modules()
+    with patch.dict(sys.modules, modules):
+        coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 12))
+    recorder = modules["homeassistant.components.recorder.statistics"]
+    recorder.async_add_external_statistics.assert_not_called()
+    hass.config_entries.async_update_entry.assert_not_called()
+
+
+def test_corrected_day_reimports_complete_cumulative_series() -> None:
+    coordinator, _, hass = _coordinator(
+        ledger={"2026-10-11": 0.9, "2026-10-12": 0.2},
+        payload=[{"consumptions": [
+            {"rangeType": "Day", "startDate": "2026-10-11", "value": 1.1},
+            {"rangeType": "Day", "startDate": "2026-10-12", "value": 0.2},
+        ]}],
+    )
+    modules = _recorder_modules()
+    with patch.dict(sys.modules, modules):
+        coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 12))
+    recorder = modules["homeassistant.components.recorder.statistics"]
+    recorder.async_add_external_statistics.assert_called_once()
+    rows = recorder.async_add_external_statistics.call_args.args[2]
+    assert [row["sum"] for row in rows] == [1.1, 1.3]
+    saved_data = hass.config_entries.async_update_entry.call_args.kwargs["data"]
+    assert saved_data["_dated_statistics_daily_ledger"]["2026-10-11"] == 1.1
