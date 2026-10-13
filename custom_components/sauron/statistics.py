@@ -65,3 +65,57 @@ def build_daily_statistics(
             }
         )
     return rows
+
+
+def merge_daily_history(
+    existing: dict[str, float],
+    payloads: list[dict[str, Any]],
+    reading_date: date,
+    through_date: date,
+) -> dict[str, float]:
+    """Merge a new meter-reading period into a continuous, gap-free daily ledger.
+
+    Previously imported days are retained across physical meter readings.
+    Existing values are only changed if SAUR supplies a corrected day again.
+    """
+    if existing:
+        last = max(date.fromisoformat(key) for key in existing)
+        if reading_date > last:
+            raise ValueError("Missing SAUR history between physical readings")
+        start = last
+    else:
+        start = reading_date
+
+    rows = build_daily_statistics(payloads, start, through_date, "UTC")
+    merged = dict(existing)
+    for row in rows:
+        day = row["start"].date().isoformat()
+        merged[day] = row["state"]
+    if merged:
+        ordered = sorted(date.fromisoformat(key) for key in merged)
+        if any(right - left != timedelta(days=1) for left, right in pairwise(ordered)):
+            raise ValueError("Incomplete SAUR daily history: missing dates")
+    return merged
+
+
+def build_ledger_statistics(
+    daily_values: dict[str, float], timezone: str
+) -> list[dict[str, Any]]:
+    """Rebuild the complete continuous Recorder series after a new reading."""
+    if not daily_values:
+        return []
+    days = sorted(date.fromisoformat(key) for key in daily_values)
+    baseline = days[0] - timedelta(days=1)
+    return build_daily_statistics(
+        [
+            {
+                "consumptions": [
+                    {"rangeType": "Day", "startDate": day.isoformat(), "value": daily_values[day.isoformat()]}
+                    for day in days
+                ]
+            }
+        ],
+        baseline,
+        days[-1],
+        timezone,
+    )
