@@ -100,6 +100,7 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 |---|---:|---|
 | Polling interval | 4 h | How often SAURon refreshes the SAUR API |
 | Stale data threshold | 72 h | Age of the latest published daily consumption at which Home Assistant raises a Repair Issue |
+| Experimental dated Recorder statistics | Off | Explicitly opt in to backdated Recorder writes; test only, after backup |
 
 SAUR generally publishes consumption data once per day, sometimes with a delay and potentially later after a weekend. A 72-hour default stale threshold avoids treating ordinary publication delays as an integration failure. Existing user-configured thresholds are preserved. Temporary HTTP 5xx failures affecting estimated-index reconstruction use a separate short retry sequence of 2, 5 and 10 minutes.
 
@@ -127,7 +128,7 @@ If a required historical monthly request temporarily fails with an HTTP 5xx resp
 
 ## Energy Dashboard
 
-**Experimental dated Recorder statistics (development only):** the integration contains a separate backdated-statistics importer, disabled by default. It is not exposed as a supported configuration option and must not be enabled on a production installation yet. It does not replace the existing Estimated water index sensor. Its baseline is stored in the config entry; a changed physical reading pauses imports. Incomplete day-by-day history also blocks imports to avoid understated cumulative totals. Zero-consumption days omitted by SAUR are not yet distinguishable from missing data. No migration or cleanup of previously imported statistics is implemented.
+**Experimental dated Recorder statistics (development only):** the integration contains a separate backdated-statistics importer, disabled by default and available through the integration options as **Enable experimental dated Recorder statistics**. Enable it only for a controlled test after backing up Home Assistant; it is not yet recommended for production. It does not replace the existing Estimated water index sensor. Its baseline is stored in the config entry; a changed physical reading pauses imports. Incomplete day-by-day history also blocks imports to avoid understated cumulative totals. Zero-consumption days omitted by SAUR are not yet distinguishable from missing data. No migration or cleanup of previously imported statistics is implemented.
 
 
 Use the **Estimated water index** sensor for Home Assistant's water statistics:
