@@ -23,8 +23,8 @@ def test_late_publication_uses_consumption_date() -> None:
         "Europe/Paris",
     )
     assert [row["sum"] for row in rows] == [0.9, 1.67]
-    assert rows[0]["start"] == datetime(2026, 10, 10, 22, tzinfo=UTC)
-    assert rows[1]["start"] == datetime(2026, 10, 11, 22, tzinfo=UTC)
+    assert rows[0]["start"] == datetime(2026, 10, 11, 21, tzinfo=UTC)
+    assert rows[1]["start"] == datetime(2026, 10, 12, 21, tzinfo=UTC)
 
 
 def test_corrected_day_recomputes_all_later_sums() -> None:
@@ -76,3 +76,13 @@ def test_month_boundary_and_repeated_month_payloads() -> None:
         "Europe/Paris",
     )
     assert [row["sum"] for row in rows] == [0.1, 0.3]
+
+
+def test_winter_time_uses_correct_utc_hour() -> None:
+    rows = build_daily_statistics(
+        [_payload(("2026-12-01", 0.2))],
+        date(2026, 11, 30),
+        date(2026, 12, 1),
+        "Europe/Paris",
+    )
+    assert rows[0]["start"] == datetime(2026, 12, 1, 22, tzinfo=UTC)
