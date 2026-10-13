@@ -18,7 +18,7 @@ def _payload(*values: tuple[str, float]) -> dict:
 def test_late_publication_uses_consumption_date() -> None:
     rows = build_daily_statistics(
         [_payload(("2026-10-11", 0.9), ("2026-10-12", 0.77))],
-        date(2026, 5, 28),
+        date(2026, 10, 10),
         date(2026, 10, 13),
         "Europe/Paris",
     )
@@ -44,15 +44,14 @@ def test_corrected_day_recomputes_all_later_sums() -> None:
     assert [row["sum"] for row in corrected] == [0.9, 1.67]
 
 
-def test_missing_days_are_not_inserted_as_zero() -> None:
-    rows = build_daily_statistics(
+def test_missing_days_prevent_partial_cumulative_import() -> None:
+    with pytest.raises(ValueError, match="Incomplete SAUR daily history"):
+        build_daily_statistics(
         [_payload(("2026-10-11", 0.9), ("2026-10-13", 0.2))],
         date(2026, 10, 10),
         date(2026, 10, 13),
         "Europe/Paris",
     )
-    assert len(rows) == 2
-    assert rows[-1]["sum"] == 1.1
 
 
 def test_reject_negative_consumption() -> None:
@@ -86,3 +85,13 @@ def test_winter_time_uses_correct_utc_hour() -> None:
         "Europe/Paris",
     )
     assert rows[0]["start"] == datetime(2026, 12, 1, 22, tzinfo=UTC)
+
+
+def test_missing_first_day_prevents_partial_import() -> None:
+    with pytest.raises(ValueError, match="Incomplete SAUR daily history"):
+        build_daily_statistics(
+            [_payload(("2026-10-12", 0.2))],
+            date(2026, 10, 10),
+            date(2026, 10, 12),
+            "Europe/Paris",
+        )
