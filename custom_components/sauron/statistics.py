@@ -41,7 +41,10 @@ def build_daily_statistics(
 
     if values:
         ordered = sorted(values)
-        if any(right - left != timedelta(days=1) for left, right in zip(ordered, ordered[1:])):
+        if ordered[0] != reading_date + timedelta(days=1) or any(
+            right - left != timedelta(days=1)
+            for left, right in zip(ordered, ordered[1:], strict=False)
+        ):
             raise ValueError("Incomplete SAUR daily history: missing dates")
 
     tz = ZoneInfo(timezone)
