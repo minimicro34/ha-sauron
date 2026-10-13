@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, time, timedelta
+from itertools import pairwise
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -43,7 +44,7 @@ def build_daily_statistics(
         ordered = sorted(values)
         if ordered[0] != reading_date + timedelta(days=1) or any(
             right - left != timedelta(days=1)
-            for left, right in zip(ordered, ordered[1:], strict=False)
+            for left, right in pairwise(ordered)
         ):
             raise ValueError("Incomplete SAUR daily history: missing dates")
 
