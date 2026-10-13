@@ -13,7 +13,7 @@ def build_daily_statistics(
     through_date: date,
     timezone: str,
 ) -> list[dict[str, Any]]:
-    """Build hourly Recorder rows at local midnight, cumulative from the reading.
+    """Build hourly Recorder rows at 23:00 local time, cumulative from the reading.
 
     Rebuilding the entire series ensures that a corrected historical day also
     updates all later sums. Missing days are not treated as zero: no row is
@@ -46,7 +46,7 @@ def build_daily_statistics(
         total = round(total + values[day], 6)
         rows.append(
             {
-                "start": datetime.combine(day, time.min, tzinfo=tz).astimezone(UTC),
+                "start": datetime.combine(day, time(hour=23), tzinfo=tz).astimezone(UTC),
                 "state": round(values[day], 6),
                 "sum": total,
             }
