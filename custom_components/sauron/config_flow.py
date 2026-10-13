@@ -19,6 +19,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL_H,
     DEFAULT_STALE_DATA_THRESHOLD_H,
     DOMAIN,
+    OPT_ENABLE_DATED_STATISTICS,
     OPT_SCAN_INTERVAL_H,
     OPT_SCAN_INTERVAL_H_MAX,
     OPT_SCAN_INTERVAL_H_MIN,
@@ -175,6 +176,10 @@ class SauronOptionsFlow(OptionsFlow):
         options = self.config_entry.options
         schema = vol.Schema(
             {
+                vol.Optional(
+                    OPT_ENABLE_DATED_STATISTICS,
+                    default=options.get(OPT_ENABLE_DATED_STATISTICS, False),
+                ): bool,
                 vol.Optional(
                     OPT_SCAN_INTERVAL_H,
                     default=options.get(OPT_SCAN_INTERVAL_H, DEFAULT_SCAN_INTERVAL_H),
