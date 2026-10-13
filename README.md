@@ -23,13 +23,14 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 
 ## Features
 
-- **5 primary sensor entities** per meter subscription:
+- **6 primary sensor entities** per meter subscription:
 
 | Entity | Unit | Description |
 |---|---|---|
 | Estimated water index | m³ | Physical reading + daily consumption since that reading; recommended for Energy Dashboard → Water |
 | Latest daily consumption | L | Most recent non-zero daily value actually published by SAUR |
 | Weekly consumption | m³ | Current week total reported by SAUR |
+| Previous week consumption | m³ | Previous completed ISO week, including delayed daily publication |
 | Monthly consumption | m³ | Current month total reported by SAUR |
 | Yearly consumption | m³ | Current year total reported by SAUR |
 
@@ -125,6 +126,9 @@ If a required historical monthly request temporarily fails with an HTTP 5xx resp
 ---
 
 ## Energy Dashboard
+
+**Experimental dated Recorder statistics (development only):** the integration contains a separate backdated-statistics importer, disabled by default. It is not exposed as a supported configuration option and must not be enabled on a production installation yet. It does not replace the existing Estimated water index sensor. Its baseline is stored in the config entry; a changed physical reading pauses imports. Incomplete day-by-day history also blocks imports to avoid understated cumulative totals. Zero-consumption days omitted by SAUR are not yet distinguishable from missing data. No migration or cleanup of previously imported statistics is implemented.
+
 
 Use the **Estimated water index** sensor for Home Assistant's water statistics:
 
@@ -229,7 +233,7 @@ python -m pip install -e . pytest pytest-asyncio pytest-cov ruff
 make check
 ```
 
-Useful individual targets include `make format`, `make format-check`, `make lint`, `make test`, and `make clean`. Hassfest and HACS validation continue to run in GitHub Actions.
+Useful individual targets include `make fix` (Ruff formatting and safe automatic lint fixes), `make format`, `make format-check`, `make lint`, `make test`, and `make clean`. Hassfest and HACS validation continue to run in GitHub Actions.
 
 ---
 
