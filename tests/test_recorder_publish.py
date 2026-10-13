@@ -1,9 +1,9 @@
 """Recorder publication safety tests with isolated Home Assistant recorder stubs."""
 
+import sys
 from datetime import date
 from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock, patch
-import sys
 
 from custom_components.sauron.coordinator import SauronCoordinator
 
