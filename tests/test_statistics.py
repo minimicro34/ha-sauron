@@ -10,8 +10,7 @@ from custom_components.sauron.statistics import build_daily_statistics
 def _payload(*values: tuple[str, float]) -> dict:
     return {
         "consumptions": [
-            {"rangeType": "Day", "startDate": day, "value": value}
-            for day, value in values
+            {"rangeType": "Day", "startDate": day, "value": value} for day, value in values
         ]
     }
 

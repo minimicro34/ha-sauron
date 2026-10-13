@@ -135,7 +135,9 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             except Exception as err:
                 _LOGGER.debug(
                     "Previous-week SAUR data unavailable for %04d-%02d: %s",
-                    year, month, err,
+                    year,
+                    month,
+                    err,
                 )
                 previous_week_payloads = []
                 break
