@@ -56,6 +56,7 @@
       "daily_liters": { "name": "Latest daily consumption" },
       "daily_date": { "name": "Latest daily consumption date" },
       "weekly_m3": { "name": "Current week consumption" },
+      "previous_week_m3": { "name": "Previous week consumption" },
       "monthly_m3": { "name": "Monthly consumption" },
       "yearly_m3": { "name": "Yearly consumption" },
       "data_freshness_hours": { "name": "Data age" },
