@@ -52,7 +52,6 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self._client = client
         self._normal_update_interval = normal_interval
         self._estimated_index_failures = 0
-        self._statistics_anchor: date | None = None
         self._monthly_index_payloads: list[dict[str, Any]] | None = None
         self._stale_threshold_h = entry.options.get(
             OPT_STALE_DATA_THRESHOLD_H, DEFAULT_STALE_DATA_THRESHOLD_H
@@ -254,15 +253,21 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             return
         if not self.hass.is_running or self._monthly_index_payloads is None:
             return
-        if self._statistics_anchor is None:
-            self._statistics_anchor = reading_date
-        elif reading_date != self._statistics_anchor:
+        # Persist the original baseline in entry.data so a restart cannot reset it.
+        anchor_key = "_dated_statistics_anchor"
+        persisted_anchor = self.config_entry.data.get(anchor_key)
+        if persisted_anchor is not None and persisted_anchor != reading_date.isoformat():
             _LOGGER.warning(
                 "Physical reading date changed (%s -> %s); dated statistics paused",
-                self._statistics_anchor,
+                persisted_anchor,
                 reading_date,
             )
             return
+        if persisted_anchor is None:
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data={**self.config_entry.data, anchor_key: reading_date.isoformat()},
+            )
         try:
             from homeassistant.components.recorder.models.statistics import StatisticMeanType
             from homeassistant.components.recorder.statistics import async_add_external_statistics
