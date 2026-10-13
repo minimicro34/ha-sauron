@@ -248,8 +248,8 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         if not self.hass.is_running or self._monthly_index_payloads is None:
             return
         try:
-            from homeassistant.components.recorder.statistics import async_add_external_statistics
             from homeassistant.components.recorder.models.statistics import StatisticMeanType
+            from homeassistant.components.recorder.statistics import async_add_external_statistics
 
             from .statistics import build_daily_statistics
 
