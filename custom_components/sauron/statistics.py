@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -38,6 +38,11 @@ def build_daily_statistics(
                 if day in values and values[day] != value:
                     raise ValueError("Conflicting SAUR readings for the same date")
                 values[day] = value
+
+    if values:
+        ordered = sorted(values)
+        if any(right - left != timedelta(days=1) for left, right in zip(ordered, ordered[1:])):
+            raise ValueError("Incomplete SAUR daily history: missing dates")
 
     tz = ZoneInfo(timezone)
     total = 0.0
