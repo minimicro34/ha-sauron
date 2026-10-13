@@ -13,12 +13,14 @@ def build_daily_statistics(
     reading_date: date,
     through_date: date,
     timezone: str,
+    *,
+    initial_sum: float = 0.0,
 ) -> list[dict[str, Any]]:
     """Build hourly Recorder rows at 23:00 local time, cumulative from the reading.
 
     Rebuilding the entire series ensures that a corrected historical day also
     updates all later sums. Missing days are not treated as zero: no row is
-    written for them until SAUR supplies a dated value.
+    written until SAUR supplies a complete consecutive history.
     """
     values: dict[date, float] = {}
     for payload in payloads:
@@ -49,7 +51,9 @@ def build_daily_statistics(
             raise ValueError("Incomplete SAUR daily history: missing dates")
 
     tz = ZoneInfo(timezone)
-    total = 0.0
+    if initial_sum < 0 or not float("-inf") < initial_sum < float("inf"):
+        raise ValueError("Invalid initial cumulative sum")
+    total = initial_sum
     rows: list[dict[str, Any]] = []
     for day in sorted(values):
         total = round(total + values[day], 6)
