@@ -52,6 +52,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self._client = client
         self._normal_update_interval = normal_interval
         self._estimated_index_failures = 0
+        self._statistics_anchor: date | None = None
         self._monthly_index_payloads: list[dict[str, Any]] | None = None
         self._stale_threshold_h = entry.options.get(
             OPT_STALE_DATA_THRESHOLD_H, DEFAULT_STALE_DATA_THRESHOLD_H
@@ -206,6 +207,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self, subscription_id: str, reading: MeterReading, through_date: date
     ) -> float | None:
         """Estimate the cumulative index and back off briefly on transient failures."""
+        self._monthly_index_payloads = None
         if through_date <= reading.reading_date:
             self._estimated_index_recovered(subscription_id)
             return round(reading.value_m3, 3)
@@ -247,7 +249,19 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
 
     def _publish_dated_statistics(self, reading_date: date, through_date: date) -> None:
         """Queue backdated Recorder rows, without touching existing index entities."""
+        # Recorder writes are opt-in until explicitly validated on a test instance.
+        if not self.config_entry.options.get("enable_dated_statistics", False):
+            return
         if not self.hass.is_running or self._monthly_index_payloads is None:
+            return
+        if self._statistics_anchor is None:
+            self._statistics_anchor = reading_date
+        elif reading_date != self._statistics_anchor:
+            _LOGGER.warning(
+                "Physical reading date changed (%s -> %s); dated statistics paused",
+                self._statistics_anchor,
+                reading_date,
+            )
             return
         try:
             from homeassistant.components.recorder.models.statistics import StatisticMeanType
