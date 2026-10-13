@@ -35,8 +35,10 @@ git switch -c feature/my-change
 Format the code when needed:
 
 ```bash
-make format
+make fix
 ```
+
+`make fix` formats the repository and applies Ruff's automatic lint fixes. Use `make format` when only formatting is needed. Review the resulting diff before committing.
 
 Run the complete local validation before committing:
 
@@ -56,6 +58,7 @@ Additional Makefile targets are available:
 make compile
 make format
 make format-check
+make fix
 make lint
 make test
 make clean
@@ -80,6 +83,12 @@ The project enforces a **minimum global test coverage of 90%**. `make test`, `ma
 New or changed behavior should be covered by meaningful tests. Do not add tests solely to satisfy the percentage: prefer exercising functional paths, error handling, recovery behavior, and relevant edge cases.
 
 The current coverage may be higher than the enforced minimum; contributors should preserve or improve useful coverage whenever practical.
+
+---
+
+## Recorder historical statistics
+
+The dated-statistics importer is experimental and disabled by default. Do not enable it on a production Home Assistant instance or add it to the public options flow without dedicated tests for historical corrections, restart persistence, physical-reading rebasing, missing days and timezone boundaries. Keep existing cumulative-index entities unchanged and document any migration or cleanup plan before enabling Recorder writes.
 
 ---
 
