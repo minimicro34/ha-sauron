@@ -39,33 +39,67 @@
         "title": "SAURon options",
         "data": {
           "scan_interval_h": "Polling interval (hours)",
-          "stale_data_threshold_h": "Stale data alert threshold (hours)"
+          "stale_data_threshold_h": "Stale data alert threshold (hours)",
+          "enable_dated_statistics": "Enable experimental dated Recorder statistics"
         },
         "data_description": {
           "scan_interval_h": "How often to query the SAUR API. SAUR usually publishes daily data with a delay, so values below 4h are rarely useful.",
-          "stale_data_threshold_h": "Raise a Home Assistant alert if the latest published daily consumption is older than this many hours."
+          "stale_data_threshold_h": "Raise a Home Assistant alert if the latest published daily consumption is older than this many hours.",
+          "enable_dated_statistics": "Write reconstructed daily water history to Recorder. Experimental: missing SAUR days or a new physical meter reading will pause imports."
         }
       }
     }
   },
   "entity": {
     "sensor": {
-      "last_index": { "name": "Water index" },
-      "estimated_index": { "name": "Estimated water index" },
-      "last_index_date": { "name": "Last reading date" },
-      "daily_liters": { "name": "Latest daily consumption" },
-      "daily_date": { "name": "Latest daily consumption date" },
-      "weekly_m3": { "name": "Current week consumption" },
-      "previous_week_m3": { "name": "Previous week consumption" },
-      "monthly_m3": { "name": "Monthly consumption" },
-      "yearly_m3": { "name": "Yearly consumption" },
-      "data_freshness_hours": { "name": "Data age" },
-      "last_successful_poll": { "name": "Last successful poll" },
-      "meter_serial": { "name": "Meter serial number" },
-      "meter_brand": { "name": "Meter manufacturer" },
-      "meter_model": { "name": "Meter model" },
-      "meter_diameter": { "name": "Meter diameter" },
-      "telereleve_tech": { "name": "Remote reading technology" }
+      "last_index": {
+        "name": "Water index"
+      },
+      "estimated_index": {
+        "name": "Estimated water index"
+      },
+      "last_index_date": {
+        "name": "Last reading date"
+      },
+      "daily_liters": {
+        "name": "Latest daily consumption"
+      },
+      "daily_date": {
+        "name": "Latest daily consumption date"
+      },
+      "weekly_m3": {
+        "name": "Current week consumption"
+      },
+      "previous_week_m3": {
+        "name": "Previous week consumption"
+      },
+      "monthly_m3": {
+        "name": "Monthly consumption"
+      },
+      "yearly_m3": {
+        "name": "Yearly consumption"
+      },
+      "data_freshness_hours": {
+        "name": "Data age"
+      },
+      "last_successful_poll": {
+        "name": "Last successful poll"
+      },
+      "meter_serial": {
+        "name": "Meter serial number"
+      },
+      "meter_brand": {
+        "name": "Meter manufacturer"
+      },
+      "meter_model": {
+        "name": "Meter model"
+      },
+      "meter_diameter": {
+        "name": "Meter diameter"
+      },
+      "telereleve_tech": {
+        "name": "Remote reading technology"
+      }
     }
   },
   "issues": {
