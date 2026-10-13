@@ -4,7 +4,11 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from custom_components.sauron.statistics import (\n    build_daily_statistics,\n    build_ledger_statistics,\n    merge_daily_history,\n)
+from custom_components.sauron.statistics import (
+    build_daily_statistics,
+    build_ledger_statistics,
+    merge_daily_history,
+)
 
 
 def _payload(*values: tuple[str, float]) -> dict:
