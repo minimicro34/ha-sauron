@@ -262,7 +262,13 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         if ledger is None and "_dated_statistics_anchor" in self.config_entry.data:
             return
         try:
-            start = max(date.fromisoformat(day) for day in ledger) if ledger else reading_date
+            start = (
+                max(
+                    min(date.fromisoformat(day) for day in ledger),
+                    max(date.fromisoformat(day) for day in ledger) - timedelta(days=35),
+                ) - timedelta(days=1)
+                if ledger else reading_date
+            )
             if start >= through_date:
                 return
             payloads = []
@@ -306,7 +312,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                 reading_date,
                 through_date,
             )
-            if not ledger:
+            if not ledger or ledger == existing:
                 return
             rows = build_ledger_statistics(ledger, self.hass.config.time_zone)
             if not rows:
