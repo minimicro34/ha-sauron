@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added an explicit, disabled-by-default experimental Recorder option for controlled testing, with English, French, German and Spanish translations.
 - Recorder writes remain opt-in, pending real-world validation.
 - Persisted a daily consumption ledger for historical Recorder statistics across Home Assistant restarts and physical meter readings, rebuilding cumulative sums without resetting at each reading. Legacy preview anchors without a ledger remain blocked for safety.
-- Fetches missing consumption months from the last persisted Recorder day, even after a newer physical meter reading, so late-published days can fill gaps safely. Failed backfills leave the previous ledger unchanged; regression tests cover cross-month recovery and API failures.
+- Fetches a rolling 35-day correction overlap and missing consumption months, even after a newer physical meter reading. Corrected days rebuild later cumulative sums; unchanged ledgers skip Recorder imports. Failed backfills leave the previous ledger unchanged; regression tests cover cross-month recovery and API failures.
 - Prevented partial historical imports when SAUR daily data has missing dates, including gaps between meter readings, rather than writing understated cumulative totals.
 - Updated development and integration documentation for the experimental Recorder safeguards.
 
