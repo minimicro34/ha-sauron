@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Persisted a daily consumption ledger for historical Recorder statistics across Home Assistant restarts and physical meter readings, rebuilding cumulative sums without resetting at each reading. Legacy preview anchors without a ledger remain blocked for safety.
 - Fetches a rolling 35-day correction overlap and missing consumption months, even after a newer physical meter reading. Corrected days rebuild later cumulative sums; unchanged ledgers skip Recorder imports. Failed backfills leave the previous ledger unchanged; regression tests cover cross-month recovery and API failures.
 - Prevented partial historical imports when SAUR daily data has missing dates, including gaps between meter readings, rather than writing understated cumulative totals.
+- Added regression tests ensuring unchanged daily ledgers skip Recorder imports and corrected historical days reimport updated cumulative sums.
+- Documented Recorder's existing-row update behavior and the remaining need for real-database validation.
 - Updated development and integration documentation for the experimental Recorder safeguards.
 
 ## [0.5.2](https://github.com/minimicro34/ha-sauron/compare/v0.5.1...v0.5.2) - 2026-09-14
