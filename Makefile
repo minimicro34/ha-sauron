@@ -1,6 +1,6 @@
 PYTHON ?= python3.14
 
-.PHONY: help compile format format-check lint test check clean
+.PHONY: help compile format format-check lint fix test check clean
 
 help:
 	@echo "Available targets:"
@@ -8,6 +8,7 @@ help:
 	@echo "  format        Format the code with Ruff"
 	@echo "  format-check  Verify formatting without modifying files"
 	@echo "  lint          Run Ruff lint"
+	@echo "  fix           Format and auto-fix Ruff lint issues"
 	@echo "  test          Run pytest with coverage"
 	@echo "  check         Run the complete local validation"
 	@echo "  clean         Remove Python cache files"
@@ -23,6 +24,10 @@ format-check:
 
 lint:
 	ruff check .
+
+fix:
+	ruff format .
+	ruff check . --fix
 
 test:
 	$(PYTHON) -m pytest --cov --cov-report=term-missing
