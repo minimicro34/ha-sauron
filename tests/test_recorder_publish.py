@@ -64,7 +64,8 @@ def test_recorder_import_persists_anchor_after_validation():
     assert args[2][0]["sum"] == 0.9
     hass.config_entries.async_update_entry.assert_called_once()
     assert entry.data.get("_dated_statistics_daily_ledger") is None
-    assert hass.config_entries.async_update_entry.call_args.kwargs["data"]["_dated_statistics_daily_ledger"] == {"2026-10-11": 0.9}
+    saved_data = hass.config_entries.async_update_entry.call_args.kwargs["data"]
+    assert saved_data["_dated_statistics_daily_ledger"] == {"2026-10-11": 0.9}
 
 
 def test_recorder_legacy_anchor_without_ledger_does_not_write():
@@ -104,7 +105,8 @@ def test_recorder_continues_after_physical_reading() -> None:
     imported.async_add_external_statistics.assert_called_once()
     rows = imported.async_add_external_statistics.call_args.args[2]
     assert [row["sum"] for row in rows] == [0.9, 1.1, 1.4]
-    assert hass.config_entries.async_update_entry.call_args.kwargs["data"]["_dated_statistics_daily_ledger"]["2026-10-13"] == 0.3
+    saved_data = hass.config_entries.async_update_entry.call_args.kwargs["data"]
+    assert saved_data["_dated_statistics_daily_ledger"]["2026-10-13"] == 0.3
 
 
 def test_recorder_rejects_gap_between_readings() -> None:
