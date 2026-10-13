@@ -39,32 +39,64 @@
         "title": "Opciones SAURon",
         "data": {
           "scan_interval_h": "Intervalo de consulta (horas)",
-          "stale_data_threshold_h": "Umbral de alerta datos obsoletos (horas)"
+          "stale_data_threshold_h": "Umbral de alerta datos obsoletos (horas)",
+          "enable_dated_statistics": "Activar estadísticas históricas experimentales de Recorder"
         },
         "data_description": {
           "scan_interval_h": "Con qué frecuencia consultar la API SAUR. SAUR suele publicar los datos diarios con retraso, por lo que valores inferiores a 4h raramente son útiles.",
-          "stale_data_threshold_h": "Generar una alerta de Home Assistant si el último consumo diario publicado es más antiguo que este número de horas."
+          "stale_data_threshold_h": "Generar una alerta de Home Assistant si el último consumo diario publicado es más antiguo que este número de horas.",
+          "enable_dated_statistics": "Guardar el historial diario reconstruido en Recorder. La importación se detiene si faltan días o cambia la lectura física."
         }
       }
     }
   },
   "entity": {
     "sensor": {
-      "last_index": { "name": "Índice de agua" },
-      "estimated_index": { "name": "Índice de agua estimado" },
-      "last_index_date": { "name": "Fecha última lectura" },
-      "daily_liters": { "name": "Último consumo diario" },
-      "daily_date": { "name": "Fecha del último consumo diario" },
-      "weekly_m3": { "name": "Semana actual" },
-      "monthly_m3": { "name": "Consumo mensual" },
-      "yearly_m3": { "name": "Consumo anual" },
-      "data_freshness_hours": { "name": "Antigüedad datos" },
-      "last_successful_poll": { "name": "Última consulta correcta" },
-      "meter_serial": { "name": "Número de serie del contador" },
-      "meter_brand": { "name": "Fabricante del contador" },
-      "meter_model": { "name": "Modelo del contador" },
-      "meter_diameter": { "name": "Diámetro del contador" },
-      "telereleve_tech": { "name": "Tecnología de lectura remota" }
+      "last_index": {
+        "name": "Índice de agua"
+      },
+      "estimated_index": {
+        "name": "Índice de agua estimado"
+      },
+      "last_index_date": {
+        "name": "Fecha última lectura"
+      },
+      "daily_liters": {
+        "name": "Último consumo diario"
+      },
+      "daily_date": {
+        "name": "Fecha del último consumo diario"
+      },
+      "weekly_m3": {
+        "name": "Semana actual"
+      },
+      "monthly_m3": {
+        "name": "Consumo mensual"
+      },
+      "yearly_m3": {
+        "name": "Consumo anual"
+      },
+      "data_freshness_hours": {
+        "name": "Antigüedad datos"
+      },
+      "last_successful_poll": {
+        "name": "Última consulta correcta"
+      },
+      "meter_serial": {
+        "name": "Número de serie del contador"
+      },
+      "meter_brand": {
+        "name": "Fabricante del contador"
+      },
+      "meter_model": {
+        "name": "Modelo del contador"
+      },
+      "meter_diameter": {
+        "name": "Diámetro del contador"
+      },
+      "telereleve_tech": {
+        "name": "Tecnología de lectura remota"
+      }
     }
   },
   "issues": {
