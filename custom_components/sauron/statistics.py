@@ -110,7 +110,11 @@ def build_ledger_statistics(
         [
             {
                 "consumptions": [
-                    {"rangeType": "Day", "startDate": day.isoformat(), "value": daily_values[day.isoformat()]}
+                    {
+                        "rangeType": "Day",
+                        "startDate": day.isoformat(),
+                        "value": daily_values[day.isoformat()],
+                    }
                     for day in days
                 ]
             }
