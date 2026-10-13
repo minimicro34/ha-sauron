@@ -39,32 +39,64 @@
         "title": "SAURon-Optionen",
         "data": {
           "scan_interval_h": "Abrufintervall (Stunden)",
-          "stale_data_threshold_h": "Warnschwelle für veraltete Daten (Stunden)"
+          "stale_data_threshold_h": "Warnschwelle für veraltete Daten (Stunden)",
+          "enable_dated_statistics": "Experimentelle historische Recorder-Statistiken aktivieren"
         },
         "data_description": {
           "scan_interval_h": "Wie oft die SAUR-API abgefragt wird. SAUR veröffentlicht tägliche Verbrauchsdaten normalerweise mit Verzögerung, daher sind Werte unter 4h selten sinnvoll.",
-          "stale_data_threshold_h": "Home Assistant-Warnung auslösen, wenn der zuletzt veröffentlichte Tagesverbrauch älter als diese Stundenzahl ist."
+          "stale_data_threshold_h": "Home Assistant-Warnung auslösen, wenn der zuletzt veröffentlichte Tagesverbrauch älter als diese Stundenzahl ist.",
+          "enable_dated_statistics": "Rekonstruierte tägliche Wasserverbrauchsdaten in Recorder schreiben. Bei fehlenden Tagen oder einem neuen Zählerstand wird der Import angehalten."
         }
       }
     }
   },
   "entity": {
     "sensor": {
-      "last_index": { "name": "Wasserstand" },
-      "estimated_index": { "name": "Geschätzter Wasserzählerstand" },
-      "last_index_date": { "name": "Datum letzte Ablesung" },
-      "daily_liters": { "name": "Letzter Tagesverbrauch" },
-      "daily_date": { "name": "Datum des letzten Tagesverbrauchs" },
-      "weekly_m3": { "name": "Aktuelle Woche" },
-      "monthly_m3": { "name": "Monatsverbrauch" },
-      "yearly_m3": { "name": "Jahresverbrauch" },
-      "data_freshness_hours": { "name": "Datenalter" },
-      "last_successful_poll": { "name": "Letzte erfolgreiche Abfrage" },
-      "meter_serial": { "name": "Zähler-Seriennummer" },
-      "meter_brand": { "name": "Zählerhersteller" },
-      "meter_model": { "name": "Zählermodell" },
-      "meter_diameter": { "name": "Zählerdurchmesser" },
-      "telereleve_tech": { "name": "Fernauslesetechnologie" }
+      "last_index": {
+        "name": "Wasserstand"
+      },
+      "estimated_index": {
+        "name": "Geschätzter Wasserzählerstand"
+      },
+      "last_index_date": {
+        "name": "Datum letzte Ablesung"
+      },
+      "daily_liters": {
+        "name": "Letzter Tagesverbrauch"
+      },
+      "daily_date": {
+        "name": "Datum des letzten Tagesverbrauchs"
+      },
+      "weekly_m3": {
+        "name": "Aktuelle Woche"
+      },
+      "monthly_m3": {
+        "name": "Monatsverbrauch"
+      },
+      "yearly_m3": {
+        "name": "Jahresverbrauch"
+      },
+      "data_freshness_hours": {
+        "name": "Datenalter"
+      },
+      "last_successful_poll": {
+        "name": "Letzte erfolgreiche Abfrage"
+      },
+      "meter_serial": {
+        "name": "Zähler-Seriennummer"
+      },
+      "meter_brand": {
+        "name": "Zählerhersteller"
+      },
+      "meter_model": {
+        "name": "Zählermodell"
+      },
+      "meter_diameter": {
+        "name": "Zählerdurchmesser"
+      },
+      "telereleve_tech": {
+        "name": "Fernauslesetechnologie"
+      }
     }
   },
   "issues": {
