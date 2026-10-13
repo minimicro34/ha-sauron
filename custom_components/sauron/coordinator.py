@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_STALE_DATA_THRESHOLD_H,
     DOMAIN,
     ISSUE_STALE_DATA,
+    OPT_ENABLE_DATED_STATISTICS,
     OPT_SCAN_INTERVAL_H,
     OPT_STALE_DATA_THRESHOLD_H,
 )
@@ -211,7 +212,6 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             self._estimated_index_recovered(subscription_id)
             return round(reading.value_m3, 3)
 
-        self._monthly_index_payloads = None
         monthly_payloads: list[dict[str, Any]] = []
         for year, month in _iter_months(reading.reading_date, through_date):
             try:
@@ -249,7 +249,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
     def _publish_dated_statistics(self, reading_date: date, through_date: date) -> None:
         """Queue backdated Recorder rows, without touching existing index entities."""
         # Recorder writes are opt-in until explicitly validated on a test instance.
-        if not self.config_entry.options.get("enable_dated_statistics", False):
+        if not self.config_entry.options.get(OPT_ENABLE_DATED_STATISTICS, False):
             return
         if not self.hass.is_running or self._monthly_index_payloads is None:
             return
@@ -263,11 +263,6 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                 reading_date,
             )
             return
-        if persisted_anchor is None:
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                data={**self.config_entry.data, anchor_key: reading_date.isoformat()},
-            )
         try:
             from homeassistant.components.recorder.models.statistics import StatisticMeanType
             from homeassistant.components.recorder.statistics import async_add_external_statistics
@@ -282,6 +277,11 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             )
             if not rows:
                 return
+            if persisted_anchor is None:
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data={**self.config_entry.data, anchor_key: reading_date.isoformat()},
+                )
             subscription_id = self.config_entry.data[CONF_SUBSCRIPTION_ID]
             statistic_id = f"{DOMAIN}:daily_water_{self.config_entry.entry_id.lower()}"
             async_add_external_statistics(
