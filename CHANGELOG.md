@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Kept experimental Recorder writes disabled by default, pending real-world validation.
-- Persisted the physical-reading baseline used for historical statistics across Home Assistant restarts; a changed baseline pauses imports.
+- Added an explicit, disabled-by-default experimental Recorder option for controlled testing, with English, French, German and Spanish translations.
+- Recorder writes remain opt-in, pending real-world validation.
+- Persisted the physical-reading baseline used for historical statistics across Home Assistant restarts after daily history validation; a changed baseline pauses imports.
 - Prevented partial historical imports when SAUR daily data has missing dates, rather than writing understated cumulative totals.
 - Updated development and integration documentation for the experimental Recorder safeguards.
 
