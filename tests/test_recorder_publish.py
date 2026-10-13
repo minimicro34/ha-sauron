@@ -3,7 +3,9 @@
 import sys
 from datetime import date
 from types import ModuleType, SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from custom_components.sauron.coordinator import SauronCoordinator
 
@@ -121,3 +123,52 @@ def test_recorder_rejects_gap_between_readings() -> None:
         coordinator._publish_dated_statistics(date(2026, 10, 14), date(2026, 10, 15))
     modules["homeassistant.components.recorder.statistics"].async_add_external_statistics.assert_not_called()
     hass.config_entries.async_update_entry.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delayed_days_bridge_new_physical_reading() -> None:
+    coordinator, _, hass = _coordinator(
+        ledger={"2026-09-29": 0.4, "2026-09-30": 0.5},
+    )
+    coordinator._client = SimpleNamespace(
+        async_get_monthly=AsyncMock(
+            return_value={
+                "consumptions": [
+                    {"rangeType": "Day", "startDate": "2026-10-01", "value": 0.2},
+                    {"rangeType": "Day", "startDate": "2026-10-02", "value": 0.3},
+                ]
+            }
+        )
+    )
+    await coordinator._async_refresh_recorder_history(
+        "SUB001", date(2026, 10, 2), date(2026, 10, 3)
+    )
+    assert coordinator._client.async_get_monthly.await_count == 2
+    modules = _recorder_modules()
+    with patch.dict(sys.modules, modules):
+        coordinator._publish_dated_statistics(date(2026, 10, 2), date(2026, 10, 3))
+    imported = modules["homeassistant.components.recorder.statistics"]
+    rows = imported.async_add_external_statistics.call_args.args[2]
+    assert [row["sum"] for row in rows] == [0.4, 0.9, 1.1, 1.4]
+    saved_data = hass.config_entries.async_update_entry.call_args.kwargs["data"]
+    assert saved_data["_dated_statistics_daily_ledger"]["2026-10-01"] == 0.2
+
+
+@pytest.mark.asyncio
+async def test_failed_backfill_preserves_existing_ledger() -> None:
+    coordinator, entry, hass = _coordinator(
+        ledger={"2026-09-30": 0.5},
+    )
+    coordinator._client = SimpleNamespace(
+        async_get_monthly=AsyncMock(side_effect=RuntimeError("SAUR unavailable"))
+    )
+    await coordinator._async_refresh_recorder_history(
+        "SUB001", date(2026, 10, 2), date(2026, 10, 3)
+    )
+    assert coordinator._monthly_index_payloads is None
+    modules = _recorder_modules()
+    with patch.dict(sys.modules, modules):
+        coordinator._publish_dated_statistics(date(2026, 10, 2), date(2026, 10, 3))
+    modules["homeassistant.components.recorder.statistics"].async_add_external_statistics.assert_not_called()
+    hass.config_entries.async_update_entry.assert_not_called()
+    assert entry.data["_dated_statistics_daily_ledger"] == {"2026-09-30": 0.5}
