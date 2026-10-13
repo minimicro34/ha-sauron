@@ -58,6 +58,14 @@ METER_SENSORS: tuple[SensorEntityDescription, ...] = (
         suggested_display_precision=3,
     ),
     SensorEntityDescription(
+        key="previous_week_m3",
+        translation_key="previous_week_m3",
+        device_class=SensorDeviceClass.WATER,
+        state_class=SensorStateClass.TOTAL,
+        native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
+        suggested_display_precision=3,
+    ),
+    SensorEntityDescription(
         key="monthly_m3",
         translation_key="monthly_m3",
         device_class=SensorDeviceClass.WATER,
@@ -161,6 +169,8 @@ class SauronSensor(SauronMeterEntity, SensorEntity):
             return data.daily_date
         if key == "weekly_m3":
             return data.weekly_m3
+        if key == "previous_week_m3":
+            return data.previous_week_m3
         if key == "monthly_m3":
             return data.monthly_m3
         if key == "yearly_m3":
