@@ -121,6 +121,35 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
 
         weekly_m3 = _extract_week_total_from_monthly(raw_monthly, yesterday)
         monthly_m3 = _extract_period_m3(raw_monthly)
+        previous_week_end = now.date() - timedelta(days=now.date().weekday() + 1)
+        previous_week_start = previous_week_end - timedelta(days=6)
+        previous_week_payloads: list[dict[str, Any]] = []
+        for year, month in _iter_months(previous_week_start, previous_week_end):
+            try:
+                previous_week_payloads.append(
+                    await self._client.async_get_monthly(subscription_id, year, month)
+                )
+            except SauronAuthError as err:
+                raise ConfigEntryAuthFailed from err
+            except Exception as err:
+                _LOGGER.debug(
+                    "Previous-week SAUR data unavailable for %04d-%02d: %s",
+                    year, month, err,
+                )
+                previous_week_payloads = []
+                break
+        previous_week_m3 = None
+        if previous_week_payloads:
+            previous_week_m3 = _extract_week_total_from_monthly(
+                {
+                    "consumptions": [
+                        item
+                        for payload in previous_week_payloads
+                        for item in payload.get("consumptions", [])
+                    ]
+                },
+                previous_week_end,
+            )
 
         yearly_m3: float | None = None
         try:
@@ -144,6 +173,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             daily_liters=daily_liters,
             daily_date=daily_date,
             weekly_m3=weekly_m3,
+            previous_week_m3=previous_week_m3,
             monthly_m3=monthly_m3,
             yearly_m3=yearly_m3,
         )
