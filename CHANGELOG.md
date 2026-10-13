@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added a previous-week consumption sensor based on the completed ISO week, including consumption published late by SAUR.
+- Added experimental date-aligned Recorder statistics reconstruction and regression tests for late publication, corrections, month boundaries and timezone offsets.
+- Added a `make fix` target for Ruff formatting and automatic lint fixes.
+
+### Changed
+
+- Kept experimental Recorder writes disabled by default, pending real-world validation.
+- Persisted the physical-reading baseline used for historical statistics across Home Assistant restarts; a changed baseline pauses imports.
+- Prevented partial historical imports when SAUR daily data has missing dates, rather than writing understated cumulative totals.
+- Updated development and integration documentation for the experimental Recorder safeguards.
+
 ## [0.5.2](https://github.com/minimicro34/ha-sauron/compare/v0.5.1...v0.5.2) - 2026-09-14
 
 ### Added
