@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0](https://github.com/minimicro34/ha-sauron/compare/v0.5.2...v0.6.0) - Unreleased
+## [0.6.1](https://github.com/minimicro34/ha-sauron/compare/v0.6.0...v0.6.1) - 2026-10-14
+
+### Fixed
+
+- Declared optional Recorder integration ordering in `after_dependencies` to satisfy Hassfest without requiring Recorder to be enabled.
+- Aligned integration manifest version with the corrective release.
+
+## [0.6.0](https://github.com/minimicro34/ha-sauron/compare/v0.5.2...v0.6.0) - 2026-10-13
 
 ### Added
 
@@ -15,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Declared Recorder in `after_dependencies` for Hassfest validation without making the experimental feature mandatory; aligned the manifest version with v0.6.0.
 - Added an explicit, disabled-by-default experimental Recorder option for controlled testing, with English, French, German and Spanish translations.
 - Recorder writes remain opt-in, pending real-world validation.
 - Persisted a daily consumption ledger for historical Recorder statistics across Home Assistant restarts and physical meter readings, rebuilding cumulative sums without resetting at each reading. Legacy preview anchors without a ledger remain blocked for safety.
