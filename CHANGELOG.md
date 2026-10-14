@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Declared Recorder in `after_dependencies` for Hassfest validation without making the experimental feature mandatory; aligned the manifest version with v0.6.0.
 - Added an explicit, disabled-by-default experimental Recorder option for controlled testing, with English, French, German and Spanish translations.
 - Recorder writes remain opt-in, pending real-world validation.
 - Persisted a daily consumption ledger for historical Recorder statistics across Home Assistant restarts and physical meter readings, rebuilding cumulative sums without resetting at each reading. Legacy preview anchors without a ledger remain blocked for safety.
