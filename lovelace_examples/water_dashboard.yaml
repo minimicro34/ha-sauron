@@ -71,7 +71,7 @@ views:
           - type: tile
             entity: sensor.toute_la_maison_compteur_eau_saur_consommation_annuelle
             name: Cette année
-            icon: mdi:calendar-year
+            icon: mdi:calendar
 
       - type: grid
         column_span: 4
