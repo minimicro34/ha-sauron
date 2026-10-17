@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
@@ -223,7 +224,36 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             except SauronAuthError as err:
                 raise ConfigEntryAuthFailed from err
             except SauronTransientError as err:
-                return self._estimated_index_transient_failure(subscription_id, year, month, err)
+                if "HTTP 500:" not in str(err):
+                    return self._estimated_index_transient_failure(
+                        subscription_id, year, month, err
+                    )
+                _LOGGER.debug(
+                    "SAUR monthly data %04d-%02d returned HTTP 500; retrying once",
+                    year, month,
+                )
+                await asyncio.sleep(2)
+                try:
+                    payload = await self._client.async_get_monthly(
+                        subscription_id, year, month
+                    )
+                except SauronAuthError as retry_err:
+                    raise ConfigEntryAuthFailed from retry_err
+                except SauronTransientError as retry_err:
+                    return self._estimated_index_transient_failure(
+                        subscription_id, year, month, retry_err
+                    )
+                except Exception as retry_err:
+                    _LOGGER.warning(
+                        "Could not build estimated water index for %s: monthly data "
+                        "%04d-%02d retry failed: %s",
+                        subscription_id, year, month, retry_err,
+                    )
+                    return self._previous_estimated_index()
+                _LOGGER.info(
+                    "SAUR monthly data %04d-%02d recovered after HTTP 500 retry",
+                    year, month,
+                )
             except Exception as err:
                 _LOGGER.warning(
                     "Could not build estimated water index for %s: monthly data "
