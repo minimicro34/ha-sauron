@@ -1,11 +1,14 @@
 # SAURon — Tableau de bord eau (Home Assistant natif)
 #
 # Aucun composant frontend HACS requis : cartes natives uniquement.
-# Remplacer les entity_id selon votre installation et le statistic_id ci-dessous.
+# Exemple validé sur une installation réelle : adaptez TOUS les entity_id
+# (préfixe sensor.toute_la_maison_compteur_eau_saur_) à votre compteur.
+# Les identifiants peuvent varier selon le nom du périphérique et la langue.
 #
 # Statistique Recorder : Outils de développement > Statistiques
 # Exemple : sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
-# IMPORTANT : adapter les identifiants à votre installation.
+# IMPORTANT : remplacer aussi le statistic_id par celui de votre installation.
+# Il s'agit d'un identifiant de statistique, PAS d'un sensor.
 #
 # L'index estimé reste utile pour afficher le niveau cumulatif.
 # Les graphiques historiques utilisent les statistiques datées SAURon.
@@ -71,7 +74,7 @@ views:
             icon: mdi:calendar-year
 
       - type: grid
-        column_span: 4
+        column_span: 2
         cards:
           - type: heading
             heading: Historique quotidien — 7 jours
@@ -89,7 +92,7 @@ views:
               - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
 
       - type: grid
-        column_span: 4
+        column_span: 2
         cards:
           - type: heading
             heading: Historique quotidien — 30 jours
