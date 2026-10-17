@@ -226,7 +226,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                     return self._estimated_index_transient_failure(
                         subscription_id, year, month, err
                     )
-                _LOGGER.warning(
+                _LOGGER.debug(
                     "SAUR monthly data %04d-%02d returned HTTP 500; retrying once",
                     year, month,
                 )
