@@ -74,40 +74,36 @@ views:
             icon: mdi:calendar-year
 
       - type: grid
-        column_span: 2
+        column_span: 4
         cards:
           - type: heading
-            heading: Historique quotidien — 7 jours
+            heading: Historique des consommations
             heading_style: title
             icon: mdi:chart-bar
 
-          - type: statistics-graph
-            title: Consommation journalière réelle
-            chart_type: bar
-            period: day
-            days_to_show: 7
-            stat_types:
-              - change
-            entities:
-              - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: statistics-graph
+                title: Consommation journalière — 7 jours
+                chart_type: bar
+                period: day
+                days_to_show: 7
+                stat_types:
+                  - change
+                entities:
+                  - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
 
-      - type: grid
-        column_span: 2
-        cards:
-          - type: heading
-            heading: Historique quotidien — 30 jours
-            heading_style: title
-            icon: mdi:chart-line
-
-          - type: statistics-graph
-            title: Consommation journalière réelle
-            chart_type: bar
-            period: day
-            days_to_show: 30
-            stat_types:
-              - change
-            entities:
-              - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
+              - type: statistics-graph
+                title: Consommation journalière — 30 jours
+                chart_type: bar
+                period: day
+                days_to_show: 30
+                stat_types:
+                  - change
+                entities:
+                  - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
 
       - type: grid
         column_span: 2
