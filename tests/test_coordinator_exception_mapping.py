@@ -7,9 +7,10 @@ all three endpoint try/except blocks (primary, monthly, yearly).
 
 from __future__ import annotations
 
-from datetime import timedelta
+import asyncio
+from datetime import UTC, datetime, timedelta
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -36,6 +37,9 @@ def _make_coordinator(client: Any) -> SauronCoordinator:
     coordinator.config_entry = entry
     coordinator.hass = hass
     coordinator.data = None
+    # Stubbed HA does not own or await background tasks; close the coroutine
+    # to avoid leaked-coroutine warnings in synchronous coordinator tests.
+    hass.async_create_background_task.side_effect = lambda coro, name: coro.close()
     return coordinator
 
 
@@ -153,3 +157,63 @@ class TestEstimatedIndexBackoff:
 
         assert coordinator._estimated_index_failures == 0
         assert coordinator.update_interval == coordinator._normal_update_interval
+
+
+class TestMonthlyAvailabilityDiagnostic:
+    """One-shot diagnostic probes months without mutating coordinator data."""
+
+    async def test_probes_failed_month_through_current_and_logs_counts(self, caplog) -> None:
+        client = AsyncMock()
+        client.async_get_monthly = AsyncMock(
+            side_effect=[
+                SauronTransientError("HTTP 500"),
+                {"consumptions": [{"value": 0.4}, {"value": 0.2}]},
+                {"consumptions": []},
+            ]
+        )
+        coordinator = _make_coordinator(client)
+        with patch(
+            "custom_components.sauron.coordinator.datetime"
+        ) as clock:
+            clock.now.return_value = datetime(2026, 7, 17, tzinfo=UTC)
+            await coordinator._async_diagnose_monthly_availability("SUB001", 2026, 5)
+
+        assert [call.args for call in client.async_get_monthly.await_args_list] == [
+            ("SUB001", 2026, 5),
+            ("SUB001", 2026, 6),
+            ("SUB001", 2026, 7),
+        ]
+        assert "2026-05 unavailable" in caplog.text
+        assert "2026-06 OK; consumption entries=2" in caplog.text
+        assert "2026-07 OK; consumption entries=0" in caplog.text
+        assert "diagnostic finished" in caplog.text
+        assert coordinator.data is None
+
+    async def test_auth_failure_stops_probing(self, caplog) -> None:
+        client = AsyncMock()
+        client.async_get_monthly = AsyncMock(side_effect=SauronAuthError("secret"))
+        coordinator = _make_coordinator(client)
+        with patch("custom_components.sauron.coordinator.datetime") as clock:
+            clock.now.return_value = datetime(2026, 7, 17, tzinfo=UTC)
+            await coordinator._async_diagnose_monthly_availability("SUB001", 2026, 5)
+
+        assert client.async_get_monthly.await_count == 1
+        assert "AUTH FAILED; stopping" in caplog.text
+        assert "secret" not in caplog.text
+
+    async def test_background_diagnostic_scheduled_only_once(self) -> None:
+        client = AsyncMock()
+        coordinator = _make_coordinator(client)
+        scheduled = []
+
+        def schedule(coro, name):
+            scheduled.append(asyncio.create_task(coro))
+
+        coordinator.hass.async_create_background_task.side_effect = schedule
+        error = SauronTransientError("HTTP 500")
+        coordinator._estimated_index_transient_failure("SUB001", 2026, 5, error)
+        coordinator._estimated_index_transient_failure("SUB001", 2026, 5, error)
+        await asyncio.gather(*scheduled)
+        assert len(scheduled) == 1
+        assert coordinator._monthly_diagnostic_started
+        assert coordinator.update_interval == timedelta(minutes=5)
