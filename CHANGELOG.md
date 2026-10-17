@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2-beta.1] - 2026-10-17
+
+### Added
+
+- Temporary one-shot HTTP 500 monthly availability diagnostic at WARNING level, probing the failed month through the current month without changing statistics.
+- Regression tests for monthly probing, authentication failures and single background-task scheduling.
+
+### Fixed
+
+- Prevented unawaited-coroutine warnings in coordinator test doubles.
+
+### Notes
+
+- Diagnostic pre-release for Home Assistant testing only; PR #5 remains unmerged.
+
 ## [0.6.1](https://github.com/minimicro34/ha-sauron/compare/v0.6.0...v0.6.1) - 2026-10-14
 
 ### Fixed
