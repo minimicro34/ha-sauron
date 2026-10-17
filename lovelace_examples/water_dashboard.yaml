@@ -81,77 +81,76 @@ views:
             heading_style: title
             icon: mdi:chart-bar
 
-          - type: grid
-            columns: 2
-            square: false
-            cards:
-              - type: statistics-graph
-                title: Consommation journalière — 7 jours
-                chart_type: bar
-                period: day
-                days_to_show: 7
-                stat_types:
-                  - change
-                entities:
-                  - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
-
-              - type: statistics-graph
-                title: Consommation journalière — 30 jours
-                chart_type: bar
-                period: day
-                days_to_show: 30
-                stat_types:
-                  - change
-                entities:
-                  - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
-
-      - type: grid
-        column_span: 2
-        cards:
-          - type: heading
-            heading: Compteur
-            heading_style: title
-            icon: mdi:gauge
-
-          - type: entities
+          - type: statistics-graph
+            grid_options:
+              columns: full
+            title: Consommation journalière — 7 jours
+            chart_type: bar
+            period: day
+            days_to_show: 7
+            stat_types:
+              - change
             entities:
-              - entity: sensor.toute_la_maison_compteur_eau_saur_index_eau_estime
-                name: Index estimé
-              - entity: sensor.toute_la_maison_compteur_eau_saur_index_eau
-                name: Dernier index physique SAUR
-              - entity: sensor.toute_la_maison_compteur_eau_saur_date_dernier_releve
-                name: Date du relevé physique
-              - entity: sensor.toute_la_maison_compteur_eau_saur_consommation_j_1
-                name: Dernière consommation publiée
-              - entity: sensor.toute_la_maison_compteur_eau_saur_date_derniere_consommation_journaliere
-                name: Date de cette consommation
+              - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
+
+          - type: statistics-graph
+            grid_options:
+              columns: full
+            title: Consommation journalière — 30 jours
+            chart_type: bar
+            period: day
+            days_to_show: 30
+            stat_types:
+              - change
+            entities:
+              - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
 
       - type: grid
-        column_span: 2
+        column_span: 4
         cards:
           - type: heading
-            heading: Diagnostic
+            heading: Informations et diagnostic
             heading_style: title
             icon: mdi:information-outline
 
-          - type: entities
-            title: Fraîcheur des données
-            entities:
-              - entity: sensor.toute_la_maison_compteur_eau_saur_age_des_donnees
-                name: Âge de la dernière consommation publiée
-              - entity: sensor.toute_la_maison_compteur_eau_saur_dernier_polling_reussi
-                name: Dernier polling réussi
+          - type: grid
+            columns: 3
+            square: false
+            grid_options:
+              columns: full
+            cards:
+              - type: entities
+                title: Compteur
+                entities:
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_index_eau_estime
+                    name: Index estimé
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_index_eau
+                    name: Dernier index physique SAUR
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_date_dernier_releve
+                    name: Date du relevé physique
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_consommation_j_1
+                    name: Dernière consommation publiée
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_date_derniere_consommation_journaliere
+                    name: Date de cette consommation
 
-          - type: entities
-            title: Compteur physique
-            entities:
-              - entity: sensor.toute_la_maison_compteur_eau_saur_numero_de_serie_du_compteur
-                name: Numéro de série
-              - entity: sensor.toute_la_maison_compteur_eau_saur_fabricant_du_compteur
-                name: Fabricant
-              - entity: sensor.toute_la_maison_compteur_eau_saur_modele_du_compteur
-                name: Modèle
-              - entity: sensor.toute_la_maison_compteur_eau_saur_diametre_du_compteur
-                name: Diamètre
-              - entity: sensor.toute_la_maison_compteur_eau_saur_technologie_de_telereleve
-                name: Télérelève
+              - type: entities
+                title: Fraîcheur des données
+                entities:
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_age_des_donnees
+                    name: Âge de la dernière consommation publiée
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_dernier_polling_reussi
+                    name: Dernier polling réussi
+
+              - type: entities
+                title: Compteur physique
+                entities:
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_numero_de_serie_du_compteur
+                    name: Numéro de série
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_fabricant_du_compteur
+                    name: Fabricant
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_modele_du_compteur
+                    name: Modèle
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_diametre_du_compteur
+                    name: Diamètre
+                  - entity: sensor.toute_la_maison_compteur_eau_saur_technologie_de_telereleve
+                    name: Télérelève
