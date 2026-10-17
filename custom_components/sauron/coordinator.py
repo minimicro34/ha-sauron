@@ -26,7 +26,6 @@ from .const import (
     DEFAULT_STALE_DATA_THRESHOLD_H,
     DOMAIN,
     ISSUE_STALE_DATA,
-    OPT_ENABLE_DATED_STATISTICS,
     OPT_SCAN_INTERVAL_H,
     OPT_STALE_DATA_THRESHOLD_H,
 )
@@ -284,8 +283,6 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self, subscription_id: str, reading_date: date, through_date: date
     ) -> None:
         """Fetch all months needed to bridge delayed days across meter readings."""
-        if not self.config_entry.options.get(OPT_ENABLE_DATED_STATISTICS, False):
-            return
         self._monthly_index_payloads = None
         if not self.hass.is_running:
             return
@@ -317,9 +314,6 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
 
     def _publish_dated_statistics(self, reading_date: date, through_date: date) -> None:
         """Queue backdated Recorder rows, without touching existing index entities."""
-        # Recorder writes are opt-in until explicitly validated on a test instance.
-        if not self.config_entry.options.get(OPT_ENABLE_DATED_STATISTICS, False):
-            return
         if not self.hass.is_running or self._monthly_index_payloads is None:
             return
         # A legacy anchor has no persisted day-by-day ledger. Do not silently
