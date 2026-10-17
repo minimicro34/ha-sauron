@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
@@ -25,7 +26,6 @@ from .const import (
     DEFAULT_STALE_DATA_THRESHOLD_H,
     DOMAIN,
     ISSUE_STALE_DATA,
-    OPT_ENABLE_DATED_STATISTICS,
     OPT_SCAN_INTERVAL_H,
     OPT_STALE_DATA_THRESHOLD_H,
 )
@@ -222,7 +222,36 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             except SauronAuthError as err:
                 raise ConfigEntryAuthFailed from err
             except SauronTransientError as err:
-                return self._estimated_index_transient_failure(subscription_id, year, month, err)
+                if "HTTP 500:" not in str(err):
+                    return self._estimated_index_transient_failure(
+                        subscription_id, year, month, err
+                    )
+                _LOGGER.debug(
+                    "SAUR monthly data %04d-%02d returned HTTP 500; retrying once",
+                    year, month,
+                )
+                await asyncio.sleep(2)
+                try:
+                    payload = await self._client.async_get_monthly(
+                        subscription_id, year, month
+                    )
+                except SauronAuthError as retry_err:
+                    raise ConfigEntryAuthFailed from retry_err
+                except SauronTransientError as retry_err:
+                    return self._estimated_index_transient_failure(
+                        subscription_id, year, month, retry_err
+                    )
+                except Exception as retry_err:
+                    _LOGGER.warning(
+                        "Could not build estimated water index for %s: monthly data "
+                        "%04d-%02d retry failed: %s",
+                        subscription_id, year, month, retry_err,
+                    )
+                    return self._previous_estimated_index()
+                _LOGGER.info(
+                    "SAUR monthly data %04d-%02d recovered after HTTP 500 retry",
+                    year, month,
+                )
             except Exception as err:
                 _LOGGER.warning(
                     "Could not build estimated water index for %s: monthly data "
@@ -253,8 +282,6 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self, subscription_id: str, reading_date: date, through_date: date
     ) -> None:
         """Fetch all months needed to bridge delayed days across meter readings."""
-        if not self.config_entry.options.get(OPT_ENABLE_DATED_STATISTICS, False):
-            return
         self._monthly_index_payloads = None
         if not self.hass.is_running:
             return
@@ -286,9 +313,6 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
 
     def _publish_dated_statistics(self, reading_date: date, through_date: date) -> None:
         """Queue backdated Recorder rows, without touching existing index entities."""
-        # Recorder writes are opt-in until explicitly validated on a test instance.
-        if not self.config_entry.options.get(OPT_ENABLE_DATED_STATISTICS, False):
-            return
         if not self.hass.is_running or self._monthly_index_payloads is None:
             return
         # A legacy anchor has no persisted day-by-day ledger. Do not silently

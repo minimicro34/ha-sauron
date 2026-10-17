@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2](https://github.com/minimicro34/ha-sauron/compare/v0.6.1...v0.6.2) - 2026-10-17
+
+### Added
+
+- Permanent dated Recorder water statistics, published automatically without an experimental option. Historical daily readings remain available in the Home Assistant Energy Dashboard.
+- Regression coverage for HTTP 500 recovery and permanent Recorder publishing.
+
+### Changed
+
+- Retained the existing daily consumption ledger, stable statistic ID and historical correction handling across upgrades.
+- Documented the dated Recorder source, local 23:00 daily timestamps and Energy Dashboard setup.
+
+### Fixed
+
+- Retry a monthly HTTP 500 once after 2 seconds when rebuilding the estimated index. A recovered request logs at INFO; persistent failures preserve the previous estimate and use the existing 2/5/10-minute backoff.
+- Removed temporary monthly availability probing and its verbose diagnostic warnings.
+
 ## [0.6.1](https://github.com/minimicro34/ha-sauron/compare/v0.6.0...v0.6.1) - 2026-10-14
 
 ### Fixed

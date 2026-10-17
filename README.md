@@ -13,7 +13,7 @@
 
 </p>
 
-💧 Daily usage • 📅 Weekly / monthly / yearly totals • 🔢 Estimated cumulative index • 📈 Energy Dashboard
+💧 Daily usage • 📅 Weekly / monthly / yearly totals • 🔢 Estimated cumulative index • 📈 Dated Recorder statistics
 
 ---
 
@@ -49,10 +49,10 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 | Meter diameter | — | Meter diameter reported by SAUR |
 | Remote reading technology | — | SAUR remote-reading technology |
 
-- **Energy Dashboard compatible** — use `Estimated water index` as the water source.
+- **Energy Dashboard compatible** — automatic dated Recorder statistics provide historical daily water consumption; the `Estimated water index` remains available as a separate cumulative sensor.
 - **Automatic rebasing** — when SAUR publishes a new physical meter reading, it becomes the new baseline automatically.
 - **Historical reconstruction** — daily entries from each required month are accumulated after the physical reading date.
-- **Transient-server retry** — HTTP 5xx responses are treated as temporary failures and the estimated-index refresh backs off at 2, 5 and then 10 minutes.
+- **Transient-server retry** — monthly HTTP 500 responses are retried once after 2 seconds; persistent failures preserve the previous estimate and back off at 2, 5 and then 10 minutes.
 - **Last-value preservation** — a temporary historical-month failure keeps the last valid estimated index instead of replacing it with an incomplete value.
 - **Re-authentication flow** — credentials can be updated without removing the integration.
 - **Repair Issues** — Home Assistant warns when the latest published daily consumption becomes stale.
@@ -100,7 +100,6 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 |---|---:|---|
 | Polling interval | 4 h | How often SAURon refreshes the SAUR API |
 | Stale data threshold | 72 h | Age of the latest published daily consumption at which Home Assistant raises a Repair Issue |
-| Experimental dated Recorder statistics | Off | Explicitly opt in to backdated Recorder writes; test only, after backup |
 
 SAUR generally publishes consumption data once per day, sometimes with a delay and potentially later after a weekend. A 72-hour default stale threshold avoids treating ordinary publication delays as an integration failure. Existing user-configured thresholds are preserved. Temporary HTTP 5xx failures affecting estimated-index reconstruction use a separate short retry sequence of 2, 5 and 10 minutes.
 
@@ -122,23 +121,28 @@ For example, if SAUR reports a physical reading of `315.000 m³` on May 28, SAUR
 
 When a later technician reading is published, SAURon automatically discards the previous reconstruction baseline and starts again from the new physical reading. The reading day itself is excluded from the accumulated consumption to avoid double counting.
 
-If a required historical monthly request temporarily fails with an HTTP 5xx response, SAURon keeps the last valid estimated index and retries after 2 minutes, then 5 minutes, then every 10 minutes until the monthly data is available again. Normal polling is restored automatically after recovery.
+If a required historical monthly request returns HTTP 500, SAURon retries it once after 2 seconds. A successful retry restores the normal flow; if the request still fails, SAURon keeps the last valid estimated index and refreshes after 2 minutes, then 5 minutes, then every 10 minutes until recovery. The first HTTP 500 is logged at DEBUG, successful recovery at INFO and persistent failure at WARNING. Normal polling is restored automatically after recovery.
 
 ---
 
 ## Energy Dashboard
 
-**Experimental dated Recorder statistics (development only):** the integration contains a separate backdated-statistics importer, disabled by default and available through the integration options as **Enable experimental dated Recorder statistics**. Enable it only for a controlled test after backing up Home Assistant; it is not yet recommended for production. It does not replace the existing Estimated water index sensor. A persistent daily ledger keeps the cumulative total continuous across physical meter readings (normally twice yearly). On every enabled refresh, SAURon requests a rolling 35-day overlap (plus the previous day) and any missing months, including earlier months when necessary, so late-published days can bridge a reading change. Corrected daily values rebuild subsequent cumulative sums; unchanged ledgers do not queue duplicate imports. Home Assistant Recorder's import path supports updating existing statistic timestamps; the integration still requires validation against a real Recorder database before production use. Incomplete day-by-day history or a failed monthly request blocks new imports without altering stored values. Zero-consumption days omitted by SAUR are not yet distinguishable from missing data. No migration or cleanup of previously imported statistics is implemented.
+SAURon automatically publishes a separate dated Recorder water statistic:
 
+`sauron:daily_water_<config_entry_id>`
 
-Use the **Estimated water index** sensor for Home Assistant's water statistics:
+This statistic is enabled by default and does not require an integration option. It is built from SAUR's daily consumption values, with a persistent daily ledger that preserves cumulative totals across physical meter readings and Home Assistant restarts. A rolling historical overlap allows late-published or corrected daily readings to update their original dates. Incomplete daily histories or failed monthly requests postpone imports rather than publishing partial totals. Unchanged histories do not trigger duplicate imports.
+
+Each daily volume is timestamped at **23:00 in the Home Assistant local timezone** so it appears on the corresponding consumption day in the Energy Dashboard. The value is converted to UTC for Recorder storage. A daily reading of 0.81 m³ for October 14 therefore appears on October 14, not October 15.
+
+To use the historical daily water data:
 
 1. Go to **Settings → Energy**.
-2. Under **Water**, select **Add water source**.
-3. Select the `Estimated water index` entity created by SAURon.
-4. Save.
+2. Under **Water**, choose **Add water source**.
+3. Select **SAURon dated water** (the `sauron:daily_water_...` statistic).
+4. Save. Historical consumption is then displayed on its original dates.
 
-The sensor uses `device_class: water` and `state_class: total_increasing` and is expressed in m³.
+The **Estimated water index** sensor remains available as a separate, reconstructed cumulative reading. Do not configure both the dated statistic and the estimated index as independent water sources for the same meter, or consumption may be counted twice.
 
 ### `utility_meter` (optional)
 
