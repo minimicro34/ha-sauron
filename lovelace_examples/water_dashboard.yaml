@@ -5,7 +5,7 @@
 #
 # Statistique Recorder : Outils de développement > Statistiques
 # Exemple : sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
-# IMPORTANT : remplacer l'identifiant d'exemple par celui de votre installation.
+# IMPORTANT : adapter les identifiants à votre installation.
 #
 # L'index estimé reste utile pour afficher le niveau cumulatif.
 # Les graphiques historiques utilisent les statistiques datées SAURon.
@@ -28,17 +28,17 @@ views:
             icon: mdi:water
 
           - type: tile
-            entity: sensor.saur_water_meter_index_eau_estime
+            entity: sensor.toute_la_maison_compteur_eau_saur_index_eau_estime
             name: Index estimé
             icon: mdi:counter
 
           - type: tile
-            entity: sensor.saur_water_meter_derniere_consommation_journaliere
+            entity: sensor.toute_la_maison_compteur_eau_saur_consommation_j_1
             name: Dernière consommation publiée
             icon: mdi:water-outline
 
           - type: tile
-            entity: sensor.saur_water_meter_age_des_donnees
+            entity: sensor.toute_la_maison_compteur_eau_saur_age_des_donnees
             name: Âge des données SAUR
             icon: mdi:clock-outline
 
@@ -51,17 +51,22 @@ views:
             icon: mdi:chart-bar
 
           - type: tile
-            entity: sensor.saur_water_meter_consommation_semaine_courante
+            entity: sensor.toute_la_maison_compteur_eau_saur_consommation_semaine_courante
             name: Cette semaine
             icon: mdi:calendar-week
 
           - type: tile
-            entity: sensor.saur_water_meter_consommation_mensuelle
+            entity: sensor.toute_la_maison_compteur_eau_saur_consommation_semaine_precedente
+            name: Semaine précédente
+            icon: mdi:calendar-week
+
+          - type: tile
+            entity: sensor.toute_la_maison_compteur_eau_saur_consommation_mensuelle
             name: Ce mois
             icon: mdi:calendar-month
 
           - type: tile
-            entity: sensor.saur_water_meter_consommation_annuelle
+            entity: sensor.toute_la_maison_compteur_eau_saur_consommation_annuelle
             name: Cette année
             icon: mdi:calendar-year
 
@@ -81,7 +86,7 @@ views:
             stat_types:
               - change
             entities:
-              - entity: sauron:daily_water_REPLACE_WITH_CONFIG_ENTRY_ID
+              - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
 
       - type: grid
         column_span: 4
@@ -99,7 +104,7 @@ views:
             stat_types:
               - change
             entities:
-              - entity: sauron:daily_water_REPLACE_WITH_CONFIG_ENTRY_ID
+              - entity: sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
 
       - type: grid
         column_span: 2
@@ -111,15 +116,15 @@ views:
 
           - type: entities
             entities:
-              - entity: sensor.saur_water_meter_index_eau_estime
+              - entity: sensor.toute_la_maison_compteur_eau_saur_index_eau_estime
                 name: Index estimé
-              - entity: sensor.saur_water_meter_index_eau
+              - entity: sensor.toute_la_maison_compteur_eau_saur_index_eau
                 name: Dernier index physique SAUR
-              - entity: sensor.saur_water_meter_date_dernier_releve
+              - entity: sensor.toute_la_maison_compteur_eau_saur_date_dernier_releve
                 name: Date du relevé physique
-              - entity: sensor.saur_water_meter_derniere_consommation_journaliere
+              - entity: sensor.toute_la_maison_compteur_eau_saur_consommation_j_1
                 name: Dernière consommation publiée
-              - entity: sensor.saur_water_meter_date_derniere_consommation_journaliere
+              - entity: sensor.toute_la_maison_compteur_eau_saur_date_derniere_consommation_journaliere
                 name: Date de cette consommation
 
       - type: grid
@@ -133,33 +138,21 @@ views:
           - type: entities
             title: Fraîcheur des données
             entities:
-              - entity: sensor.saur_water_meter_age_des_donnees
+              - entity: sensor.toute_la_maison_compteur_eau_saur_age_des_donnees
                 name: Âge de la dernière consommation publiée
-              # Optionnel : renseigner l'entity_id réel du diagnostic
-              # « Dernière interrogation réussie » si vous voulez le voir ici.
-              # - entity: sensor.saur_water_meter_derniere_interrogation_reussie
-              #   name: Dernière interrogation réussie
+              - entity: sensor.toute_la_maison_compteur_eau_saur_dernier_polling_reussi
+                name: Dernier polling réussi
 
           - type: entities
             title: Compteur physique
             entities:
-              - type: attribute
-                entity: sensor.saur_water_meter_index_eau
-                attribute: serial_number
+              - entity: sensor.toute_la_maison_compteur_eau_saur_numero_de_serie_du_compteur
                 name: Numéro de série
-              - type: attribute
-                entity: sensor.saur_water_meter_index_eau
-                attribute: manufacturer
+              - entity: sensor.toute_la_maison_compteur_eau_saur_fabricant_du_compteur
                 name: Fabricant
-              - type: attribute
-                entity: sensor.saur_water_meter_index_eau
-                attribute: model
+              - entity: sensor.toute_la_maison_compteur_eau_saur_modele_du_compteur
                 name: Modèle
-              - type: attribute
-                entity: sensor.saur_water_meter_index_eau
-                attribute: diameter
+              - entity: sensor.toute_la_maison_compteur_eau_saur_diametre_du_compteur
                 name: Diamètre
-              - type: attribute
-                entity: sensor.saur_water_meter_index_eau
-                attribute: telereleve
+              - entity: sensor.toute_la_maison_compteur_eau_saur_technologie_de_telereleve
                 name: Télérelève
