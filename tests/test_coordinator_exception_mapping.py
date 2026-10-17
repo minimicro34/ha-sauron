@@ -217,3 +217,81 @@ class TestMonthlyAvailabilityDiagnostic:
         assert len(scheduled) == 1
         assert coordinator._monthly_diagnostic_started
         assert coordinator.update_interval == timedelta(minutes=5)
+
+
+class TestMonthlyHttp500Retry:
+    """HTTP 500 is retried once; other transient failures retain backoff."""
+
+    async def test_http_500_then_success_recovers_without_backoff(self) -> None:
+        client = AsyncMock()
+        client.async_get_monthly = AsyncMock(
+            side_effect=[
+                SauronTransientError("HTTP 500: "),
+                {"consumptions": [
+                    {"rangeType": "Day", "startDate": "2026-06-16", "value": 0.25}
+                ]},
+            ]
+        )
+        coordinator = _make_coordinator(client)
+        reading = MeterReading("SUB001", 100.0, datetime(2026, 6, 15).date(), MagicMock())
+        with patch("custom_components.sauron.coordinator.asyncio.sleep", new_callable=AsyncMock) as sleep:
+            result = await coordinator._async_estimated_index(
+                "SUB001", reading, datetime(2026, 6, 16).date()
+            )
+        assert result == 100.25
+        assert client.async_get_monthly.await_count == 2
+        sleep.assert_awaited_once_with(2)
+        assert coordinator._estimated_index_failures == 0
+        assert coordinator.update_interval == coordinator._normal_update_interval
+
+    async def test_second_http_500_preserves_previous_estimate(self) -> None:
+        client = AsyncMock()
+        client.async_get_monthly = AsyncMock(
+            side_effect=SauronTransientError("HTTP 500: ")
+        )
+        coordinator = _make_coordinator(client)
+        reading = MeterReading("SUB001", 100.0, datetime(2026, 6, 15).date(), MagicMock())
+        coordinator.data = SauronData(
+            meter_info=MeterInfo("SUB001", "", "", None),
+            latest_reading=reading,
+            estimated_index_m3=101.5,
+        )
+        with patch("custom_components.sauron.coordinator.asyncio.sleep", new_callable=AsyncMock):
+            result = await coordinator._async_estimated_index(
+                "SUB001", reading, datetime(2026, 6, 16).date()
+            )
+        assert result == 101.5
+        assert client.async_get_monthly.await_count == 2
+        assert coordinator.update_interval == timedelta(minutes=2)
+
+    async def test_non_500_transient_not_retried(self) -> None:
+        client = AsyncMock()
+        client.async_get_monthly = AsyncMock(
+            side_effect=SauronTransientError("HTTP 503: unavailable")
+        )
+        coordinator = _make_coordinator(client)
+        reading = MeterReading("SUB001", 100.0, datetime(2026, 6, 15).date(), MagicMock())
+        with patch("custom_components.sauron.coordinator.asyncio.sleep", new_callable=AsyncMock) as sleep:
+            result = await coordinator._async_estimated_index(
+                "SUB001", reading, datetime(2026, 6, 16).date()
+            )
+        assert result is None
+        assert client.async_get_monthly.await_count == 1
+        sleep.assert_not_awaited()
+
+    async def test_auth_failure_on_retry_propagates(self) -> None:
+        client = AsyncMock()
+        client.async_get_monthly = AsyncMock(
+            side_effect=[
+                SauronTransientError("HTTP 500: "),
+                SauronAuthError("expired"),
+            ]
+        )
+        coordinator = _make_coordinator(client)
+        reading = MeterReading("SUB001", 100.0, datetime(2026, 6, 15).date(), MagicMock())
+        with patch("custom_components.sauron.coordinator.asyncio.sleep", new_callable=AsyncMock):
+            with pytest.raises(ConfigEntryAuthFailed):
+                await coordinator._async_estimated_index(
+                    "SUB001", reading, datetime(2026, 6, 16).date()
+                )
+        assert client.async_get_monthly.await_count == 2
