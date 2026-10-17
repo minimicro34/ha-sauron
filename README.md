@@ -169,13 +169,12 @@ A complete example is available in [`lovelace_examples/water_dashboard.yaml`](lo
 It includes:
 
 - daily, current week, month and year consumption;
-- 7-day and 30-day consumption graphs based on the estimated cumulative index;
+- 7-day and 30-day consumption graphs based on SAURon's dated Recorder statistics;
 - the estimated and physical meter indexes;
-- optional `utility_meter` daily and monthly counters;
 - data freshness diagnostics;
 - physical meter metadata such as serial number, manufacturer, model, diameter and remote-reading technology.
 
-The example uses Mushroom, ApexCharts Card and card-mod.
+The example uses only built-in Home Assistant cards (Tile, Entities, Heading and Statistics Graph); no Mushroom, ApexCharts Card or card-mod installation is required. Replace the sample `sauron:daily_water_...` statistic ID with the ID shown under Developer Tools → Statistics for your SAURon entry.
 
 ---
 
