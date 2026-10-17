@@ -7,6 +7,8 @@ all three endpoint try/except blocks (primary, monthly, yearly).
 
 from __future__ import annotations
 
+import logging
+
 from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -162,6 +164,7 @@ class TestMonthlyHttp500Retry:
     """HTTP 500 is retried once; other transient failures retain backoff."""
 
     async def test_http_500_then_success_recovers_without_backoff(self, caplog) -> None:
+        caplog.set_level(logging.DEBUG, logger="custom_components.sauron.coordinator")
         client = AsyncMock()
         client.async_get_monthly = AsyncMock(
             side_effect=[
