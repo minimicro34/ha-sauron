@@ -17,7 +17,6 @@ to mark it as integration-managed (not user input)."""
 
 # ── Options keys ──────────────────────────────────────────────────────────────
 OPT_SCAN_INTERVAL_H: Final[str] = "scan_interval_h"
-OPT_ENABLE_DATED_STATISTICS: Final[str] = "enable_dated_statistics"
 OPT_STALE_DATA_THRESHOLD_H: Final[str] = "stale_data_threshold_h"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
