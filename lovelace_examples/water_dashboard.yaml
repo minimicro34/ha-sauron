@@ -1,29 +1,15 @@
-# SAURon — Exemple de tableau de bord eau
+# SAURon — Tableau de bord eau (Home Assistant natif)
 #
-# Prerequis HACS frontend :
-#   - Mushroom
-#   - ApexCharts Card
+# Aucun composant frontend HACS requis : cartes natives uniquement.
+# Remplacer les entity_id selon votre installation et le statistic_id ci-dessous.
 #
-# Noms d'entites ci-dessous : installation Home Assistant en francais.
-# Adaptez-les si Home Assistant a genere des entity_id differents.
+# Statistique Recorder : Outils de développement > Statistiques
+# Exemple : sauron:daily_water_01m19z0fc5tj1r6y1ab9zv2fva
+# IMPORTANT : remplacer l'identifiant d'exemple par celui de votre installation.
 #
-# SAURon :
-#   sensor.saur_water_meter_index_eau_estime                         index cumulatif reconstruit
-#   sensor.saur_water_meter_index_eau                                dernier index physique SAUR
-#   sensor.saur_water_meter_date_dernier_releve                      date du releve physique
-#   sensor.saur_water_meter_derniere_consommation_journaliere        derniere valeur quotidienne disponible
-#   sensor.saur_water_meter_date_derniere_consommation_journaliere   date de cette valeur quotidienne
-#   sensor.saur_water_meter_consommation_semaine_courante            semaine en cours
-#   sensor.saur_water_meter_consommation_mensuelle                   mois en cours
-#   sensor.saur_water_meter_consommation_annuelle                    annee en cours
-#   sensor.saur_water_meter_age_des_donnees                          diagnostic
-#
-# utility_meter optionnels :
-#   sensor.water_daily
-#   sensor.water_monthly
-#
-# IMPORTANT : l'index physique SAUR ne change qu'au passage du technicien.
-# Les graphiques et utility_meter doivent donc utiliser l'index estime.
+# L'index estimé reste utile pour afficher le niveau cumulatif.
+# Les graphiques historiques utilisent les statistiques datées SAURon.
+# Ne pas ajouter deux sources d'eau pour le même compteur dans Énergie.
 
 title: Eau
 views:
@@ -36,260 +22,144 @@ views:
       - type: grid
         column_span: 4
         cards:
-          - type: custom:mushroom-title-card
-            title: "Consommation d'eau"
-            subtitle: "SAUR · suivi du compteur"
-
-          - type: custom:mushroom-chips-card
-            alignment: center
-            chips:
-              - type: entity
-                entity: sensor.saur_water_meter_index_eau_estime
-                icon: mdi:counter
-                tap_action:
-                  action: more-info
-              - type: entity
-                entity: sensor.saur_water_meter_derniere_consommation_journaliere
-                icon: mdi:water-outline
-                tap_action:
-                  action: more-info
-              - type: entity
-                entity: sensor.saur_water_meter_age_des_donnees
-                icon: mdi:clock-outline
-                tap_action:
-                  action: more-info
-
-      - type: grid
-        column_span: 4
-        cards:
           - type: heading
-            heading: "Consommation"
+            heading: Consommation d'eau
             heading_style: title
-            icon: mdi:chart-bar
+            icon: mdi:water
 
-          - type: custom:mushroom-entity-card
+          - type: tile
+            entity: sensor.saur_water_meter_index_eau_estime
+            name: Index estimé
+            icon: mdi:counter
+
+          - type: tile
             entity: sensor.saur_water_meter_derniere_consommation_journaliere
-            name: "Derniere consommation journaliere"
+            name: Dernière consommation publiée
             icon: mdi:water-outline
-            layout: vertical
 
-          - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_consommation_semaine_courante
-            name: "Cette semaine"
-            icon: mdi:calendar-week
-            layout: vertical
-
-          - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_consommation_mensuelle
-            name: "Ce mois"
-            icon: mdi:calendar-month
-            layout: vertical
-
-          - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_consommation_annuelle
-            name: "Cette annee"
-            icon: mdi:calendar-year
-            layout: vertical
+          - type: tile
+            entity: sensor.saur_water_meter_age_des_donnees
+            name: Âge des données SAUR
+            icon: mdi:clock-outline
 
       - type: grid
         column_span: 4
         cards:
           - type: heading
-            heading: "7 derniers jours"
+            heading: Consommations
             heading_style: title
             icon: mdi:chart-bar
 
-          - type: custom:apexcharts-card
-            header:
-              show: true
-              title: "Consommation quotidienne"
-              show_states: false
-            graph_span: 7d
-            span:
-              end: day
-            apex_config:
-              chart:
-                type: bar
-                height: 280
-              yaxis:
-                min: 0
-            series:
-              - entity: sensor.saur_water_meter_index_eau_estime
-                name: "Consommation"
-                type: column
-                group_by:
-                  func: diff
-                  duration: 1d
-                  fill: last
-                show:
-                  legend_value: false
+          - type: tile
+            entity: sensor.saur_water_meter_consommation_semaine_courante
+            name: Cette semaine
+            icon: mdi:calendar-week
+
+          - type: tile
+            entity: sensor.saur_water_meter_consommation_mensuelle
+            name: Ce mois
+            icon: mdi:calendar-month
+
+          - type: tile
+            entity: sensor.saur_water_meter_consommation_annuelle
+            name: Cette année
+            icon: mdi:calendar-year
 
       - type: grid
         column_span: 4
         cards:
           - type: heading
-            heading: "30 derniers jours"
+            heading: Historique quotidien — 7 jours
+            heading_style: title
+            icon: mdi:chart-bar
+
+          - type: statistics-graph
+            title: Consommation journalière réelle
+            chart_type: bar
+            period: day
+            days_to_show: 7
+            stat_types:
+              - change
+            entities:
+              - entity: sauron:daily_water_REPLACE_WITH_CONFIG_ENTRY_ID
+
+      - type: grid
+        column_span: 4
+        cards:
+          - type: heading
+            heading: Historique quotidien — 30 jours
             heading_style: title
             icon: mdi:chart-line
 
-          - type: custom:apexcharts-card
-            header:
-              show: true
-              title: "Tendance quotidienne"
-              show_states: false
-            graph_span: 30d
-            span:
-              end: day
-            apex_config:
-              chart:
-                type: area
-                height: 280
-              yaxis:
-                min: 0
-            series:
-              - entity: sensor.saur_water_meter_index_eau_estime
-                name: "Consommation"
-                group_by:
-                  func: diff
-                  duration: 1d
-                  fill: last
+          - type: statistics-graph
+            title: Consommation journalière réelle
+            chart_type: bar
+            period: day
+            days_to_show: 30
+            stat_types:
+              - change
+            entities:
+              - entity: sauron:daily_water_REPLACE_WITH_CONFIG_ENTRY_ID
 
       - type: grid
         column_span: 2
         cards:
           - type: heading
-            heading: "Compteur"
+            heading: Compteur
             heading_style: title
             icon: mdi:gauge
 
-          - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_index_eau_estime
-            name: "Index estime"
-            icon: mdi:counter
-            primary_info: state
-            secondary_info: name
-            tap_action:
-              action: more-info
-
-          - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_derniere_consommation_journaliere
-            name: "Derniere consommation"
-            icon: mdi:water
-            primary_info: state
-            secondary_info: name
-
-          - type: custom:mushroom-entity-card
-            entity: sensor.saur_water_meter_date_derniere_consommation_journaliere
-            name: "Date de cette consommation"
-            icon: mdi:calendar-clock
-            primary_info: state
-            secondary_info: name
+          - type: entities
+            entities:
+              - entity: sensor.saur_water_meter_index_eau_estime
+                name: Index estimé
+              - entity: sensor.saur_water_meter_index_eau
+                name: Dernier index physique SAUR
+              - entity: sensor.saur_water_meter_date_dernier_releve
+                name: Date du relevé physique
+              - entity: sensor.saur_water_meter_derniere_consommation_journaliere
+                name: Dernière consommation publiée
+              - entity: sensor.saur_water_meter_date_derniere_consommation_journaliere
+                name: Date de cette consommation
 
       - type: grid
         column_span: 2
         cards:
           - type: heading
-            heading: "Compteurs periodiques"
+            heading: Diagnostic
             heading_style: title
-            icon: mdi:autorenew
-
-          - type: conditional
-            conditions:
-              - condition: state
-                entity: sensor.water_daily
-                state_not: unavailable
-            card:
-              type: custom:mushroom-entity-card
-              entity: sensor.water_daily
-              name: "Journalier"
-              icon: mdi:water-sync
-
-          - type: conditional
-            conditions:
-              - condition: state
-                entity: sensor.water_monthly
-                state_not: unavailable
-            card:
-              type: custom:mushroom-entity-card
-              entity: sensor.water_monthly
-              name: "Mensuel"
-              icon: mdi:calendar-month
-
-      - type: grid
-        column_span: 4
-        cards:
-          - type: heading
-            heading: "Diagnostic"
-            heading_style: subtitle
             icon: mdi:information-outline
 
-          - type: custom:mushroom-template-card
-            entity: sensor.saur_water_meter_age_des_donnees
-            primary: "Etat de la collecte SAUR"
-            secondary: >-
-              {% set h = states('sensor.saur_water_meter_age_des_donnees') | float(0) %}
-              {% if h < 1 %}
-                Donnees actualisees il y a moins d'une heure
-              {% elif h < 12 %}
-                Donnees actualisees il y a {{ h | round(1) }} h
-              {% elif h < 36 %}
-                Donnees agees de {{ h | round(1) }} h
-              {% else %}
-                Donnees potentiellement obsoletes : {{ h | round(1) }} h
-              {% endif %}
-            icon: mdi:clock-outline
-            icon_color: >-
-              {% set h = states('sensor.saur_water_meter_age_des_donnees') | float(0) %}
-              {% if h < 12 %}green{% elif h < 36 %}orange{% else %}red{% endif %}
-            tap_action:
-              action: more-info
-
           - type: entities
-            title: "Releve et reconstruction"
-            show_header_toggle: false
+            title: Fraîcheur des données
             entities:
-              - entity: sensor.saur_water_meter_index_eau_estime
-                name: "Index estime"
-                icon: mdi:counter
-              - entity: sensor.saur_water_meter_index_eau
-                name: "Dernier index physique SAUR"
-                icon: mdi:gauge
-              - entity: sensor.saur_water_meter_date_dernier_releve
-                name: "Date du releve physique"
-                icon: mdi:calendar-check
-              - entity: sensor.saur_water_meter_date_derniere_consommation_journaliere
-                name: "Date derniere consommation journaliere"
-                icon: mdi:calendar-clock
               - entity: sensor.saur_water_meter_age_des_donnees
-                name: "Age des donnees"
-                icon: mdi:clock-outline
+                name: Âge de la dernière consommation publiée
+              # Optionnel : renseigner l'entity_id réel du diagnostic
+              # « Dernière interrogation réussie » si vous voulez le voir ici.
+              # - entity: sensor.saur_water_meter_derniere_interrogation_reussie
+              #   name: Dernière interrogation réussie
 
           - type: entities
-            title: "Compteur physique"
-            show_header_toggle: false
+            title: Compteur physique
             entities:
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: serial_number
-                name: "N° de serie"
-                icon: mdi:barcode
+                name: Numéro de série
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: manufacturer
-                name: "Fabricant"
-                icon: mdi:factory
+                name: Fabricant
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: model
-                name: "Modele"
-                icon: mdi:tag-outline
+                name: Modèle
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: diameter
-                name: "Diametre"
-                icon: mdi:pipe
+                name: Diamètre
               - type: attribute
                 entity: sensor.saur_water_meter_index_eau
                 attribute: telereleve
-                name: "Telereleve"
-                icon: mdi:antenna
+                name: Télérelève
