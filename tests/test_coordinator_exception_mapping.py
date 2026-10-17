@@ -234,7 +234,10 @@ class TestMonthlyHttp500Retry:
         )
         coordinator = _make_coordinator(client)
         reading = MeterReading("SUB001", 100.0, datetime(2026, 6, 15).date(), MagicMock())
-        with patch("custom_components.sauron.coordinator.asyncio.sleep", new_callable=AsyncMock) as sleep:
+        with patch(
+            "custom_components.sauron.coordinator.asyncio.sleep",
+            new_callable=AsyncMock,
+        ) as sleep:
             result = await coordinator._async_estimated_index(
                 "SUB001", reading, datetime(2026, 6, 16).date()
             )
@@ -271,7 +274,10 @@ class TestMonthlyHttp500Retry:
         )
         coordinator = _make_coordinator(client)
         reading = MeterReading("SUB001", 100.0, datetime(2026, 6, 15).date(), MagicMock())
-        with patch("custom_components.sauron.coordinator.asyncio.sleep", new_callable=AsyncMock) as sleep:
+        with patch(
+            "custom_components.sauron.coordinator.asyncio.sleep",
+            new_callable=AsyncMock,
+        ) as sleep:
             result = await coordinator._async_estimated_index(
                 "SUB001", reading, datetime(2026, 6, 16).date()
             )
