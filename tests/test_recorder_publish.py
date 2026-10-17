@@ -10,7 +10,7 @@ import pytest
 from custom_components.sauron.coordinator import SauronCoordinator
 
 
-def _coordinator(enabled=True, anchor=None, running=True, payload=None, ledger=None):
+def _coordinator(anchor=None, running=True, payload=None, ledger=None):
     entry_data = {"subscription_id": "SUB001"}
     if anchor is not None:
         entry_data["_dated_statistics_anchor"] = anchor
@@ -19,7 +19,7 @@ def _coordinator(enabled=True, anchor=None, running=True, payload=None, ledger=N
     entry = SimpleNamespace(
         entry_id="TEST_ENTRY",
         data=entry_data,
-        options={"enable_dated_statistics": enabled},
+        options={},
     )
     hass = SimpleNamespace(
         is_running=running,
@@ -44,8 +44,8 @@ def _recorder_modules():
     }
 
 
-def test_recorder_disabled_does_not_write():
-    coordinator, _, hass = _coordinator(enabled=False, payload=[{"consumptions": []}])
+def test_recorder_empty_payload_does_not_write():
+    coordinator, _, hass = _coordinator(payload=[{"consumptions": []}])
     with patch.dict(sys.modules, _recorder_modules()):
         coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 11))
     hass.config_entries.async_update_entry.assert_not_called()
