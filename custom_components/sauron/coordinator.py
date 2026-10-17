@@ -53,6 +53,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self._client = client
         self._normal_update_interval = normal_interval
         self._estimated_index_failures = 0
+        self._monthly_diagnostic_started = False
         self._monthly_index_payloads: list[dict[str, Any]] | None = None
         self._stale_threshold_h = entry.options.get(
             OPT_STALE_DATA_THRESHOLD_H, DEFAULT_STALE_DATA_THRESHOLD_H
@@ -355,6 +356,12 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
     ) -> float | None:
         """Keep the last estimate and shorten the next coordinator interval."""
         self._estimated_index_failures += 1
+        if not self._monthly_diagnostic_started:
+            self._monthly_diagnostic_started = True
+            self.hass.async_create_background_task(
+                self._async_diagnose_monthly_availability(subscription_id, year, month),
+                "SAURon monthly availability diagnostic",
+            )
         retry_index = min(
             self._estimated_index_failures - 1,
             len(_ESTIMATED_INDEX_RETRY_MINUTES) - 1,
@@ -384,6 +391,45 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                 retry_minutes,
             )
         return previous
+
+    async def _async_diagnose_monthly_availability(
+        self, subscription_id: str, failed_year: int, failed_month: int
+    ) -> None:
+        """Probe the failed month and later months once, without changing data."""
+        now = datetime.now(UTC)
+        months = list(
+            _iter_months(date(failed_year, failed_month, 1), now.date())
+        )
+        _LOGGER.warning(
+            "SAUR monthly availability diagnostic started: %04d-%02d to %04d-%02d",
+            failed_year, failed_month, now.year, now.month,
+        )
+        for year, month in months:
+            try:
+                payload = await self._client.async_get_monthly(subscription_id, year, month)
+            except SauronAuthError:
+                _LOGGER.warning(
+                    "SAUR monthly availability diagnostic: %04d-%02d AUTH FAILED; stopping",
+                    year, month,
+                )
+                break
+            except SauronTransientError as err:
+                _LOGGER.warning(
+                    "SAUR monthly availability diagnostic: %04d-%02d unavailable: %s",
+                    year, month, err,
+                )
+            except Exception as err:
+                _LOGGER.warning(
+                    "SAUR monthly availability diagnostic: %04d-%02d failed: %s",
+                    year, month, type(err).__name__,
+                )
+            else:
+                days = payload.get("consumptions") if isinstance(payload, dict) else None
+                _LOGGER.warning(
+                    "SAUR monthly availability diagnostic: %04d-%02d OK; consumption entries=%s",
+                    year, month, len(days) if isinstance(days, list) else "unknown",
+                )
+        _LOGGER.warning("SAUR monthly availability diagnostic finished")
 
     def _estimated_index_recovered(self, subscription_id: str) -> None:
         """Restore the normal polling interval after a transient failure."""
