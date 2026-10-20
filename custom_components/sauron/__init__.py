@@ -22,7 +22,7 @@ from .const import (
     TOKEN_REFRESH_MARGIN_S,
 )
 from .coordinator import SauronCoordinator
-from .historical import fetch_historical_preview
+from .historical import fetch_historical_preview, summarize_historical_coverage
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -32,6 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 _PREVIEW_SERVICE = "preview_historical"
+_COVERAGE_SERVICE = "preview_historical_coverage"
 _PREVIEW_SCHEMA = vol.Schema(
     {
         vol.Required("entry_id"): str,
@@ -84,6 +85,40 @@ async def _async_preview_historical(hass: HomeAssistant, call: Any) -> dict[str,
 
 
 
+
+async def _async_preview_historical_coverage(hass: HomeAssistant, call: Any) -> dict[str, Any]:
+    """Inspect up to 36 historical months without modifying any HA data."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    coordinator = hass.data.get(DOMAIN, {}).get(call.data["entry_id"])
+    if not isinstance(coordinator, SauronCoordinator):
+        raise HomeAssistantError("Unknown SAURon config entry")
+    try:
+        start = date.fromisoformat(call.data["start"])
+        end = date.fromisoformat(call.data["end"])
+    except ValueError as err:
+        raise HomeAssistantError("Dates must use YYYY-MM-DD") from err
+    months = (end.year - start.year) * 12 + end.month - start.month + 1
+    if start > end or months > 36:
+        raise HomeAssistantError("Historical coverage requires at most 36 calendar months")
+    entry = coordinator.config_entry
+    existing = entry.data.get("_dated_statistics_daily_ledger") or {}
+    if not isinstance(existing, dict):
+        raise HomeAssistantError("Invalid persisted daily ledger")
+    try:
+        preview = await fetch_historical_preview(
+            coordinator._client,
+            entry.data["subscription_id"],
+            start,
+            end,
+            existing,
+        )
+    except Exception as err:
+        _LOGGER.warning("Historical SAUR coverage failed: %s", err)
+        raise HomeAssistantError("Historical SAUR coverage failed; check logs") from err
+    return summarize_historical_coverage(preview, existing)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up SAURon from a config entry."""
     session = async_get_clientsession(hass)
@@ -128,6 +163,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             DOMAIN,
             _PREVIEW_SERVICE,
             _handle_preview,
+            schema=_PREVIEW_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+
+    if hasattr(hass, "services") and not hass.services.has_service(DOMAIN, _COVERAGE_SERVICE):
+        from homeassistant.core import SupportsResponse
+
+        async def _handle_coverage(call: Any) -> dict[str, Any]:
+            return await _async_preview_historical_coverage(hass, call)
+
+        hass.services.async_register(
+            DOMAIN,
+            _COVERAGE_SERVICE,
+            _handle_coverage,
             schema=_PREVIEW_SCHEMA,
             supports_response=SupportsResponse.ONLY,
         )
