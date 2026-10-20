@@ -509,3 +509,113 @@ async def test_manual_import_queues_only_after_recorder_preflight(
         backup = update_entry.call_args.kwargs["data"]["_historical_import_backup"]
         assert backup["recorder_rows"][0]["sum"] == 0.2
         assert backup["historical_total_m3"] == 0.4
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("case", "expected"),
+    [
+        ("unknown_entry", "Unknown SAURon"),
+        ("no_ledger", "Missing persisted"),
+        ("bad_date", "Invalid isoformat"),
+        ("reversed_dates", "at most 36"),
+        ("too_many_months", "at most 36"),
+        ("wrong_boundary", "join the existing"),
+        ("no_recorder", "no existing"),
+        ("already_imported", "already contains historical"),
+        ("ledger_changed", "ledger changed"),
+        ("already_queued", "Previous historical import"),
+    ],
+)
+async def test_import_fail_closed_paths(monkeypatch, fake_entry, case, expected):
+    from datetime import timedelta
+    from unittest.mock import Mock
+
+    from custom_components.sauron import _async_import_historical
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    models = types.ModuleType("homeassistant.components.recorder.models.statistics")
+    models.StatisticMeanType = SimpleNamespace(NONE="none")
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.components.recorder.models.statistics", models
+    )
+    stats = types.ModuleType("homeassistant.components.recorder.statistics")
+    stats.async_add_external_statistics = Mock()
+    stats.statistics_during_period = Mock()
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.components.recorder.statistics", stats
+    )
+    fake_entry.data["subscription_id"] = "SUB001"
+    ledger = {"2026-05-29": 0.2}
+    fake_entry.data["_dated_statistics_daily_ledger"] = ledger
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    coordinator._client = AsyncMock()
+    coordinator._client.async_get_monthly.return_value = _payload(
+        ("2026-05-28", 0.4)
+    )
+    statistic_id = f"sauron:daily_water_{fake_entry.entry_id.lower()}"
+    recorded = [
+        {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
+        for row in build_ledger_statistics(ledger, "Europe/Paris")
+    ]
+    if case == "no_recorder":
+        recorded = []
+    if case == "already_imported":
+        recorded.insert(
+            0, {**recorded[0], "start": recorded[0]["start"] - 86400}
+        )
+    stats.statistics_during_period.return_value = {statistic_id: recorded}
+    update_entry = Mock()
+
+    async def executor_job(func):
+        return func()
+
+    hass = SimpleNamespace(
+        data={DOMAIN: {fake_entry.entry_id: coordinator}},
+        config=SimpleNamespace(time_zone="Europe/Paris"),
+        config_entries=SimpleNamespace(async_update_entry=update_entry),
+        async_add_executor_job=executor_job,
+    )
+    call = {
+        "entry_id": fake_entry.entry_id,
+        "start": "2026-05-28",
+        "end": "2026-05-28",
+        "confirm": True,
+    }
+    if case == "unknown_entry":
+        hass.data[DOMAIN] = {}
+    elif case == "no_ledger":
+        del fake_entry.data["_dated_statistics_daily_ledger"]
+    elif case == "bad_date":
+        call["start"] = "bad"
+    elif case == "reversed_dates":
+        call["start"] = "2026-05-29"
+    elif case == "too_many_months":
+        call["start"] = "2023-05-28"
+    elif case == "wrong_boundary":
+        call["end"] = "2026-05-27"
+    elif case == "ledger_changed":
+        original = coordinator._client.async_get_monthly
+
+        async def change_ledger(*args):
+            fake_entry.data["_dated_statistics_daily_ledger"] = {
+                **ledger, "2026-05-30": 0.1
+            }
+            return await original(*args)
+
+        coordinator._client.async_get_monthly = change_ledger
+    elif case == "already_queued":
+        fake_entry.data["_historical_import_backup"] = {"status": "queued"}
+
+    with pytest.raises(HomeAssistantError, match=expected):
+        await _async_import_historical(hass, SimpleNamespace(data=call))
+    stats.async_add_external_statistics.assert_not_called()
+    update_entry.assert_not_called()
