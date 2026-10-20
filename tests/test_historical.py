@@ -759,5 +759,5 @@ def test_positive_baseline_repair_rejects_inconsistent_series():
 
     historical = build_ledger_statistics({"2026-05-28": 0.4}, "UTC")
     existing = build_ledger_statistics({"2026-05-29": 0.2}, "UTC")
-    with pytest.raises(ValueError, match="No negative historical baseline"):
+    with pytest.raises(ValueError, match="Historical sum does not join"):
         plan_positive_baseline_repair(historical, existing)
