@@ -209,8 +209,8 @@ def plan_historical_backfill(
 ) -> dict[str, Any]:
     """Build a fail-closed backfill plan without writing to Recorder.
 
-    Existing hourly sums are preserved by shifting the historical baseline
-    backwards. This avoids silently rewriting existing water consumption.
+    Existing daily states are preserved while all cumulative sums are rebased
+    forwards, including the existing ledger, in one Recorder import task.
     """
     if not preview.complete or not preview.values or not ledger:
         raise ValueError("Incomplete historical data or missing existing ledger")
@@ -239,7 +239,7 @@ def plan_historical_backfill(
 
     total_history = round(sum(preview.values.values()), 6)
     zone = ZoneInfo(timezone)
-    cumulative = -total_history
+    cumulative = 0.0
     historical_rows: list[dict[str, Any]] = []
     for day_text, volume in sorted(preview.values.items()):
         day = date.fromisoformat(day_text)
@@ -251,14 +251,20 @@ def plan_historical_backfill(
                 "sum": cumulative,
             }
         )
-    if not isclose(cumulative, 0.0, rel_tol=0, abs_tol=0.000001):
-        raise ValueError("Historical cumulative sum does not join existing baseline")
+    if not isclose(cumulative, total_history, rel_tol=0, abs_tol=0.000001):
+        raise ValueError("Historical cumulative sum does not match history total")
+    rebased_existing = [
+        {**row, "sum": round(float(row["sum"]) + total_history, 6)}
+        for row in expected
+    ]
     return {
         "historical_days": len(historical_rows),
         "existing_days": len(expected),
         "historical_total_m3": total_history,
         "historical_rows": historical_rows,
-        "existing_rows_unchanged": True,
+        "rebased_existing_rows": rebased_existing,
+        "existing_states_unchanged": True,
+        "existing_rows_unchanged": False,
         "recorder_verified": True,
     }
 
