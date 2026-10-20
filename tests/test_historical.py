@@ -619,3 +619,52 @@ async def test_import_fail_closed_paths(monkeypatch, fake_entry, case, expected)
         await _async_import_historical(hass, SimpleNamespace(data=call))
     stats.async_add_external_statistics.assert_not_called()
     update_entry.assert_not_called()
+
+
+def test_preview_rejects_reversed_dates():
+    with pytest.raises(ValueError, match="start must not exceed"):
+        preview_monthly_payloads([], date(2026, 5, 29), date(2026, 5, 28))
+
+
+@pytest.mark.asyncio
+async def test_fetch_rejects_reversed_dates_before_api_call():
+    from custom_components.sauron.historical import fetch_historical_preview
+
+    client = SimpleNamespace(async_get_monthly=AsyncMock())
+    with pytest.raises(ValueError, match="start must not exceed"):
+        await fetch_historical_preview(
+            client, "subscription", date(2026, 5, 29), date(2026, 5, 28)
+        )
+    client.async_get_monthly.assert_not_awaited()
+
+
+def test_preview_ignores_monthly_and_out_of_range_readings():
+    payload = {
+        "consumptions": [
+            {"rangeType": "Month", "startDate": "2026-05-28", "value": 99},
+            {"rangeType": "Day", "startDate": "2026-05-27", "value": 0.9},
+            {"rangeType": "Day", "startDate": "2026-05-28", "value": 0.4},
+            {"rangeType": "Day", "startDate": "2026-05-29", "value": 0.7},
+        ]
+    }
+    result = preview_monthly_payloads(
+        [payload], date(2026, 5, 28), date(2026, 5, 28)
+    )
+    assert result.values == {"2026-05-28": 0.4}
+
+
+@pytest.mark.parametrize(
+    "reading",
+    [
+        {"rangeType": "Day", "value": 0.4},
+        {"rangeType": "Day", "startDate": "invalid", "value": 0.4},
+        {"rangeType": "Day", "startDate": "2026-05-28", "value": None},
+    ],
+)
+def test_preview_rejects_malformed_day(reading):
+    with pytest.raises(ValueError, match="Invalid historical SAUR daily reading"):
+        preview_monthly_payloads(
+            [{"consumptions": [reading]}],
+            date(2026, 5, 28),
+            date(2026, 5, 28),
+        )
