@@ -668,3 +668,49 @@ def test_preview_rejects_malformed_day(reading):
             date(2026, 5, 28),
             date(2026, 5, 28),
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("action", "case", "expected"),
+    [
+        ("preview", "api_error", "preview failed"),
+        ("coverage", "api_error", "coverage failed"),
+        ("coverage", "unknown", "Unknown SAURon"),
+        ("coverage", "invalid_ledger", "Invalid persisted"),
+    ],
+)
+async def test_read_only_services_fail_closed(
+    monkeypatch, fake_entry, action, case, expected
+):
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    coordinator._client = AsyncMock()
+    coordinator._client.async_get_monthly.side_effect = RuntimeError("SAUR unavailable")
+    hass = SimpleNamespace(data={DOMAIN: {fake_entry.entry_id: coordinator}})
+    if case == "unknown":
+        hass.data[DOMAIN] = {}
+    if case == "invalid_ledger":
+        fake_entry.data["_dated_statistics_daily_ledger"] = ["invalid"]
+    service = (
+        _async_preview_historical if action == "preview"
+        else _async_preview_historical_coverage
+    )
+    with pytest.raises(HomeAssistantError, match=expected):
+        await service(
+            hass,
+            SimpleNamespace(data={
+                "entry_id": fake_entry.entry_id,
+                "start": "2026-05-28",
+                "end": "2026-05-28",
+            }),
+        )
+    if case != "api_error":
+        coordinator._client.async_get_monthly.assert_not_awaited()
