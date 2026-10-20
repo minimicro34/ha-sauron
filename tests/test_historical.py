@@ -399,3 +399,35 @@ async def test_import_rejects_missing_confirmation(monkeypatch, fake_entry):
             }),
         )
     coordinator._client.async_get_monthly.assert_not_awaited()
+
+
+def test_backfill_plan_rejects_existing_history_and_ledger_gaps():
+    from custom_components.sauron.historical import plan_historical_backfill
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    history = preview_monthly_payloads(
+        [_payload(("2026-05-28", 0.4))],
+        date(2026, 5, 28),
+        date(2026, 5, 28),
+    )
+    ledger = {"2026-05-29": 0.2, "2026-05-31": 0.3}
+    with pytest.raises(ValueError, match="missing days"):
+        plan_historical_backfill(
+            history, ledger, build_ledger_statistics(ledger, "UTC"), "UTC"
+        )
+
+
+def test_backfill_plan_rejects_incomplete_history():
+    from custom_components.sauron.historical import plan_historical_backfill
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    history = preview_monthly_payloads(
+        [_payload(("2026-05-27", 0.4))],
+        date(2026, 5, 27),
+        date(2026, 5, 28),
+    )
+    ledger = {"2026-05-29": 0.2}
+    with pytest.raises(ValueError, match="Incomplete historical"):
+        plan_historical_backfill(
+            history, ledger, build_ledger_statistics(ledger, "UTC"), "UTC"
+        )
