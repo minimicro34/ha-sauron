@@ -600,6 +600,7 @@ async def test_import_fail_closed_paths(monkeypatch, fake_entry, case, expected)
     elif case == "too_many_months":
         call["start"] = "2023-05-28"
     elif case == "wrong_boundary":
+        call["start"] = "2026-05-27"
         call["end"] = "2026-05-27"
     elif case == "ledger_changed":
         original = coordinator._client.async_get_monthly
