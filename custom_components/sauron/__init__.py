@@ -216,7 +216,32 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
             "has_sum": True,
             "mean_type": StatisticMeanType.NONE,
         }
-        # Preserve a local pre-import snapshot before Recorder accepts a queued write.\n        backup_key = "_historical_import_backup"\n        if backup_key in entry.data:\n            raise ValueError("Previous historical import attempt recorded; inspect before retry")\n        hass.config_entries.async_update_entry(\n            entry,\n            data={\n                **entry.data,\n                backup_key: {\n                    "start": start.isoformat(),\n                    "end": end.isoformat(),\n                    "ledger": dict(ledger),\n                    "recorder_rows": [\n                        {\n                            "start": row["start"].isoformat(),\n                            "state": row["state"],\n                            "sum": row["sum"],\n                        }\n                        for row in normalized\n                    ],\n                    "historical_total_m3": plan["historical_total_m3"],\n                    "status": "queued",\n                },\n            },\n        )\n        async_add_external_statistics(hass, metadata, plan["historical_rows"])
+        # Preserve a local pre-import snapshot before Recorder accepts a queued write.
+        backup_key = "_historical_import_backup"
+        if backup_key in entry.data:
+            raise ValueError("Previous historical import attempt recorded; inspect before retry")
+        hass.config_entries.async_update_entry(
+            entry,
+            data={
+                **entry.data,
+                backup_key: {
+                    "start": start.isoformat(),
+                    "end": end.isoformat(),
+                    "ledger": dict(ledger),
+                    "recorder_rows": [
+                        {
+                            "start": row["start"].isoformat(),
+                            "state": row["state"],
+                            "sum": row["sum"],
+                        }
+                        for row in normalized
+                    ],
+                    "historical_total_m3": plan["historical_total_m3"],
+                    "status": "queued",
+                },
+            },
+        )
+        async_add_external_statistics(hass, metadata, plan["historical_rows"])
     except (KeyError, TypeError, ValueError, RuntimeError) as err:
         _LOGGER.warning("Historical SAUR import blocked: %s", err)
         raise HomeAssistantError(f"Historical SAUR import blocked: {err}") from err
