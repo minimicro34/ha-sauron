@@ -857,9 +857,9 @@ async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confir
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("complete", [False, True])
+@pytest.mark.parametrize("case", ["incomplete", "complete", "already_verified", "wrong_offset", "missing_marker", "historical_corruption", "wrong_existing_state"])
 async def test_positive_import_verification_waits_for_recorder(
-    monkeypatch, fake_entry, complete
+    monkeypatch, fake_entry, case
 ):
     from unittest.mock import Mock
 
@@ -880,8 +880,12 @@ async def test_positive_import_verification_waits_for_recorder(
     existing = build_ledger_statistics(
         {"2026-05-29": 0.2, "2026-05-30": 0.3}, "Europe/Paris"
     )
-    if complete:
+    if case != "incomplete":
         existing = [{**row, "sum": row["sum"] + 1.0} for row in existing]
+    if case == "wrong_existing_state":
+        existing[0]["state"] += 0.1
+    if case == "historical_corruption":
+        history[0]["sum"] += 0.1
     rows = [
         {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
         for row in [*history, *existing]
@@ -896,6 +900,12 @@ async def test_positive_import_verification_waits_for_recorder(
     fake_entry.data["_historical_baseline_repair"] = {
         "status": "pending", "offset_m3": 1.0, "source": "positive_import"
     }
+    if case == "already_verified":
+        fake_entry.data["_historical_baseline_repair"]["status"] = "verified"
+    if case == "wrong_offset":
+        fake_entry.data["_historical_baseline_repair"]["offset_m3"] = 0.9
+    if case == "missing_marker":
+        del fake_entry.data["_historical_baseline_repair"]
     coordinator = object.__new__(SauronCoordinator)
     coordinator.config_entry = fake_entry
 
@@ -921,15 +931,25 @@ async def test_positive_import_verification_waits_for_recorder(
         config_entries=SimpleNamespace(async_update_entry=update_entry),
     )
     call = SimpleNamespace(data={"entry_id": fake_entry.entry_id, "confirm": False})
-    if complete:
+    if case in ("complete", "already_verified"):
         result = await _async_repair_historical_baseline(hass, call)
         assert result["status"] == "verified"
         assert result["offset_m3"] == 1.0
-        assert update_entry.call_args.kwargs["data"][
-            "_historical_baseline_repair"
-        ]["status"] == "verified"
+        if case == "complete":
+            assert update_entry.call_args.kwargs["data"][
+                "_historical_baseline_repair"
+            ]["status"] == "verified"
+        else:
+            update_entry.assert_not_called()
     else:
-        with pytest.raises(HomeAssistantError, match="existing sums not yet verified"):
+        errors_by_case = {
+            "incomplete": "existing sums not yet verified",
+            "wrong_offset": "offset mismatch",
+            "missing_marker": "Missing positive import safety marker",
+            "historical_corruption": "historical sums not yet verified",
+            "wrong_existing_state": "existing daily consumption changed",
+        }
+        with pytest.raises(HomeAssistantError, match=errors_by_case[case]):
             await _async_repair_historical_baseline(hass, call)
         update_entry.assert_not_called()
     adjust.assert_not_called()
