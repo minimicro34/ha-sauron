@@ -352,6 +352,14 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
         ).astimezone(UTC):
             raise ValueError("Recorder historical first timestamp mismatch")
         if any(
+            row["start"] != datetime.combine(
+                history_start + timedelta(days=index),
+                datetime_time(23), tzinfo=zone,
+            ).astimezone(UTC)
+            for index, row in enumerate(history)
+        ):
+            raise ValueError("Recorder historical timestamps are not consecutive")
+        if any(
             actual["start"] != wanted["start"]
             for actual, wanted in zip(existing, expected, strict=True)
         ):
