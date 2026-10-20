@@ -7,9 +7,12 @@ Historical sums must be reconciled before any backfill is enabled.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
-from math import isfinite
+from datetime import UTC, date, datetime, time, timedelta
+from math import isclose, isfinite
 from typing import TYPE_CHECKING, Any
+from zoneinfo import ZoneInfo
+
+from .statistics import build_ledger_statistics
 
 if TYPE_CHECKING:
     from .api import SauronApiClient
@@ -192,12 +195,6 @@ def plan_historical_backfill(
     Existing hourly sums are preserved by shifting the historical baseline
     backwards. This avoids silently rewriting existing water consumption.
     """
-    from datetime import UTC, datetime, time
-    from math import isclose
-    from zoneinfo import ZoneInfo
-
-    from .statistics import build_ledger_statistics
-
     if not preview.complete or not preview.values or not ledger:
         raise ValueError("Incomplete historical data or missing existing ledger")
     history_end = date.fromisoformat(max(preview.values))
@@ -208,6 +205,15 @@ def plan_historical_backfill(
         raise ValueError("Historical import must not overlap the existing ledger")
 
     expected = build_ledger_statistics(ledger, timezone)
+    if any(
+        right - left != timedelta(days=1)
+        for left, right in zip(
+            sorted(date.fromisoformat(key) for key in ledger)[:-1],
+            sorted(date.fromisoformat(key) for key in ledger)[1:],
+            strict=True,
+        )
+    ):
+        raise ValueError("Existing ledger has missing days")
     if len(recorder_rows) != len(expected):
         raise ValueError("Recorder row count differs from the existing ledger")
     for actual, wanted in zip(recorder_rows, expected, strict=True):
