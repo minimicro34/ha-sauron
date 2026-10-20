@@ -507,15 +507,12 @@ async def test_manual_import_queues_only_after_recorder_preflight(
         recorder_stats.async_add_external_statistics.assert_not_called()
         update_entry.assert_not_called()
     else:
-        result = await _async_import_historical(hass, call)
-        assert result["status"] == "queued"
-        assert result["recorder_write_completed"] is False
-        assert result["historical_days"] == 1
-        recorder_stats.async_add_external_statistics.assert_called_once()
-        update_entry.assert_called_once()
-        backup = update_entry.call_args.kwargs["data"]["_historical_import_backup"]
-        assert backup["recorder_rows"][0]["sum"] == 0.2
-        assert backup["historical_total_m3"] == 0.4
+        # A historical negative baseline must never be queued: the Energy
+        # dashboard treats it as negative consumption at the first timestamp.
+        with pytest.raises(HomeAssistantError, match="negative Energy consumption"):
+            await _async_import_historical(hass, call)
+        recorder_stats.async_add_external_statistics.assert_not_called()
+        update_entry.assert_not_called()
 
 
 @pytest.mark.asyncio
