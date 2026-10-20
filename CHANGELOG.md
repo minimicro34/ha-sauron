@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Guarded historical Recorder import with contiguous-date, existing-row and explicit-confirmation checks, plus a positive baseline for all imported and existing cumulative statistics.
 - Read-only negative-baseline repair preview and an explicitly confirmed, idempotent Recorder cumulative adjustment.
 - Persistent repair status and verification of all historical and existing cumulative sums before marking a repair complete.
-- Regression tests for historical reconstruction, baseline correction and duplicate-write prevention.
+- Expanded regression coverage for interrupted or partially applied imports, malformed or contradictory Recorder rows, invalid offsets, repeated verification, and safe publication resumption.
+- Release validation baseline: 243 passing tests, 93.57% coverage; Python quality, HACS and hassfest successful ([CI run #39435353943](https://github.com/minimicro34/ha-sauron/actions/runs/39435353943)).
 
 ### Fixed
 
