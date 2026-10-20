@@ -8,10 +8,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from custom_components.sauron import _async_preview_historical
+from custom_components.sauron import _async_preview_historical, _async_preview_historical_coverage
 from custom_components.sauron.const import DOMAIN
 from custom_components.sauron.coordinator import SauronCoordinator
-from custom_components.sauron.historical import preview_monthly_payloads
+from custom_components.sauron.historical import (
+    preview_monthly_payloads,
+    summarize_historical_coverage,
+)
 
 
 def _payload(*items):
@@ -207,3 +210,101 @@ async def test_service_rejects_unknown_entry(monkeypatch):
                 "end": "2023-10-21",
             }),
         )
+
+
+def test_coverage_monthly_summary_and_ledger_overlap():
+    ledger = {"2023-10-31": 0.1, "2023-11-01": 0.2}
+    preview = preview_monthly_payloads(
+        [_payload(("2023-10-31", 0.1), ("2023-11-01", 0.3))],
+        date(2023, 10, 30),
+        date(2023, 11, 2),
+        ledger,
+    )
+    result = summarize_historical_coverage(preview, ledger)
+    assert result["expected_days"] == 4
+    assert result["returned_days"] == 2
+    assert result["missing_days"] == ["2023-10-30", "2023-11-02"]
+    assert result["ledger_overlap_days"] == 2
+    assert result["ledger_conflicts"]["2023-11-01"] == {
+        "existing": 0.2, "received": 0.3
+    }
+    assert result["months"] == [
+        {
+            "month": "2023-10", "expected_days": 2, "returned_days": 1,
+            "missing_days": 1, "ledger_overlap_days": 1, "ledger_conflicts": 0,
+        },
+        {
+            "month": "2023-11", "expected_days": 2, "returned_days": 1,
+            "missing_days": 1, "ledger_overlap_days": 1, "ledger_conflicts": 1,
+        },
+    ]
+    assert result["recorder_verified"] is False
+    assert result["read_only"] is True
+    assert ledger == {"2023-10-31": 0.1, "2023-11-01": 0.2}
+
+
+@pytest.mark.asyncio
+async def test_coverage_action_fetches_two_months_without_mutation(monkeypatch, fake_entry):
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    client = AsyncMock()
+    client.async_get_monthly.side_effect = [
+        _payload(("2023-10-31", 0.1)),
+        _payload(("2023-11-01", 0.2)),
+    ]
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    coordinator._client = client
+    hass = SimpleNamespace(data={DOMAIN: {fake_entry.entry_id: coordinator}})
+    before = dict(fake_entry.data)
+    result = await _async_preview_historical_coverage(
+        hass,
+        SimpleNamespace(data={
+            "entry_id": fake_entry.entry_id,
+            "start": "2023-10-31",
+            "end": "2023-11-01",
+        }),
+    )
+    assert result["complete"] is True
+    assert result["returned_days"] == 2
+    assert result["recorder_verified"] is False
+    assert fake_entry.data == before
+    assert client.async_get_monthly.await_count == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ("2023-10-01", "2026-10-01"),
+        ("2024-01-02", "2024-01-01"),
+        ("not-a-date", "2024-01-01"),
+    ],
+)
+async def test_coverage_action_rejects_invalid_range(monkeypatch, fake_entry, start, end):
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    coordinator._client = AsyncMock()
+    hass = SimpleNamespace(data={DOMAIN: {fake_entry.entry_id: coordinator}})
+    with pytest.raises(HomeAssistantError):
+        await _async_preview_historical_coverage(
+            hass,
+            SimpleNamespace(data={
+                "entry_id": fake_entry.entry_id,
+                "start": start,
+                "end": end,
+            }),
+        )
+    coordinator._client.async_get_monthly.assert_not_awaited()
