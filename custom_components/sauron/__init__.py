@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import asdict
-from datetime import UTC, date, datetime, time as datetime_time, timedelta
+from datetime import UTC, date, datetime, timedelta
+from datetime import time as datetime_time
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
