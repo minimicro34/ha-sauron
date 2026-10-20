@@ -982,6 +982,8 @@ async def test_positive_import_verification_waits_for_recorder(
 async def test_repair_rejects_invalid_persisted_state_before_recorder(
     monkeypatch, fake_entry, case, message
 ):
+    from unittest.mock import Mock
+
     from custom_components.sauron import _async_repair_historical_baseline
 
     errors = types.ModuleType("homeassistant.exceptions")
