@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import date
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
+import voluptuous as vol
+
 from homeassistant.const import Platform
+from homeassistant.core import SupportsResponse
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import SauronApiClient, TokenCache
@@ -20,6 +25,7 @@ from .const import (
     TOKEN_REFRESH_MARGIN_S,
 )
 from .coordinator import SauronCoordinator
+from .historical import fetch_historical_preview
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -28,6 +34,55 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
+_PREVIEW_SERVICE = "preview_historical"
+_PREVIEW_SCHEMA = vol.Schema(
+    {
+        vol.Required("entry_id"): str,
+        vol.Required("start"): str,
+        vol.Required("end"): str,
+    }
+)
+
+
+async def _async_preview_historical(hass: HomeAssistant, call: Any) -> dict[str, Any]:
+    """Read-only diagnostic; never update Recorder or the config entry."""
+    coordinator = hass.data.get(DOMAIN, {}).get(call.data["entry_id"])
+    if not isinstance(coordinator, SauronCoordinator):
+        raise HomeAssistantError("Unknown SAURon config entry")
+    try:
+        start = date.fromisoformat(call.data["start"])
+        end = date.fromisoformat(call.data["end"])
+    except ValueError as err:
+        raise HomeAssistantError("Dates must use YYYY-MM-DD") from err
+    if start > end or (end - start).days > 35:
+        raise HomeAssistantError("Historical preview requires an interval of at most 36 days")
+    entry = coordinator.config_entry
+    existing = entry.data.get("_dated_statistics_daily_ledger") or {}
+    try:
+        preview = await fetch_historical_preview(
+            coordinator._client,
+            entry.data["subscription_id"],
+            start,
+            end,
+            existing,
+        )
+    except Exception as err:
+        _LOGGER.warning("Historical SAUR preview failed: %s", err)
+        raise HomeAssistantError("Historical SAUR preview failed; check logs") from err
+    return {
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "returned_days": len(preview.values),
+        "missing_days": list(preview.missing_days),
+        "available_ranges": [list(item) for item in preview.available_ranges],
+        "conflicts_with_ledger": {
+            key: {"existing": old, "received": new}
+            for key, (old, new) in preview.conflicts_with_ledger.items()
+        },
+        "complete": preview.complete,
+        "read_only": True,
+    }
+
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -64,6 +119,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # this snapshot so that data-only updates (token cache writes) do NOT
     # trigger a coordinator reload.
     domain_data[f"{entry.entry_id}_{HASS_DATA_OPTIONS_SNAPSHOT}"] = dict(entry.options)
+
+    if not hass.services.has_service(DOMAIN, _PREVIEW_SERVICE):
+        async def _handle_preview(call: Any) -> dict[str, Any]:
+            return await _async_preview_historical(hass, call)
+
+        hass.services.async_register(
+            DOMAIN,
+            _PREVIEW_SERVICE,
+            _handle_preview,
+            schema=_PREVIEW_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
