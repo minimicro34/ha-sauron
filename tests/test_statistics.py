@@ -148,3 +148,11 @@ def test_correction_does_not_erase_unreturned_existing_days() -> None:
 
 def test_empty_daily_ledger_produces_no_recorder_rows():
     assert build_ledger_statistics({}, "UTC") == []
+
+
+@pytest.mark.parametrize("bad", [{}, {"consumptions": [{"rangeType": "Day", "value": 0.2}]}])
+def test_malformed_recorder_monthly_readings_are_rejected(bad):
+    with pytest.raises(ValueError, match="Invalid SAUR"):
+        build_daily_statistics(
+            [bad], date(2026, 10, 10), date(2026, 10, 11), "UTC"
+        )
