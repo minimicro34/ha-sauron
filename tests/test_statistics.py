@@ -156,3 +156,22 @@ def test_malformed_recorder_monthly_readings_are_rejected(bad):
         build_daily_statistics(
             [bad], date(2026, 10, 10), date(2026, 10, 11), "UTC"
         )
+
+
+def test_conflicting_monthly_recorder_readings_are_rejected():
+    with pytest.raises(ValueError, match="Conflicting SAUR readings"):
+        build_daily_statistics(
+            [_payload(("2026-10-11", 0.2)), _payload(("2026-10-11", 0.3))],
+            date(2026, 10, 10), date(2026, 10, 11), "UTC",
+        )
+
+
+@pytest.mark.parametrize("value", [-0.1, float("nan"), float("inf")])
+def test_ledger_merge_rejects_invalid_late_corrections(value):
+    ledger = {"2026-10-11": 0.9, "2026-10-12": 0.2}
+    with pytest.raises(ValueError, match="Invalid SAUR daily volume"):
+        merge_daily_history(
+            ledger, [_payload(("2026-10-12", value))],
+            date(2026, 10, 10), date(2026, 10, 12),
+        )
+    assert ledger == {"2026-10-11": 0.9, "2026-10-12": 0.2}
