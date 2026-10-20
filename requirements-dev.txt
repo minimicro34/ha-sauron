@@ -3,3 +3,4 @@ pytest-asyncio
 pytest-cov
 ruff
 aiohttp
+voluptuous>=0.15.0
