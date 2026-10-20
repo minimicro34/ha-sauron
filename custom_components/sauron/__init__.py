@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.const import Platform
-from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -119,7 +118,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # trigger a coordinator reload.
     domain_data[f"{entry.entry_id}_{HASS_DATA_OPTIONS_SNAPSHOT}"] = dict(entry.options)
 
-    if not hass.services.has_service(DOMAIN, _PREVIEW_SERVICE):
+    if hasattr(hass, "services") and not hass.services.has_service(DOMAIN, _PREVIEW_SERVICE):
+        from homeassistant.core import SupportsResponse
         async def _handle_preview(call: Any) -> dict[str, Any]:
             return await _async_preview_historical(hass, call)
 
