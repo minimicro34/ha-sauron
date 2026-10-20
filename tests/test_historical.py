@@ -370,3 +370,32 @@ def test_backfill_plan_rejects_missing_historical_boundary():
         plan_historical_backfill(
             history, ledger, build_ledger_statistics(ledger, "UTC"), "UTC"
         )
+
+
+@pytest.mark.asyncio
+async def test_import_rejects_missing_confirmation(monkeypatch, fake_entry):
+    """An unconfirmed action must never fetch or enqueue Recorder writes."""
+    from custom_components.sauron import _async_import_historical
+
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    coordinator._client = AsyncMock()
+    hass = SimpleNamespace(data={DOMAIN: {fake_entry.entry_id: coordinator}})
+    with pytest.raises(HomeAssistantError, match="confirm"):
+        await _async_import_historical(
+            hass,
+            SimpleNamespace(data={
+                "entry_id": fake_entry.entry_id,
+                "start": "2023-10-16",
+                "end": "2026-05-28",
+                "confirm": False,
+            }),
+        )
+    coordinator._client.async_get_monthly.assert_not_awaited()
