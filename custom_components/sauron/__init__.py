@@ -136,6 +136,7 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         raise HomeAssistantError("Unknown SAURon config entry")
     if call.data.get("confirm") is not True:
         raise HomeAssistantError("Explicit confirm: true is required")
+    from homeassistant.components import recorder
     from homeassistant.components.recorder.models.statistics import StatisticMeanType
     from homeassistant.components.recorder.statistics import (
         async_add_external_statistics,
@@ -176,7 +177,7 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         return list(data.get(statistic_id, []))
 
     try:
-        recorded = await hass.async_add_executor_job(_read_recorder)
+        recorded = await recorder.get_instance(hass).async_add_executor_job(_read_recorder)
         if not recorded:
             raise ValueError("Recorder has no existing long-term statistics")
         existing_start_utc = datetime.combine(
@@ -246,6 +247,9 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
     except (KeyError, TypeError, ValueError, RuntimeError) as err:
         _LOGGER.warning("Historical SAUR import blocked: %s", err)
         raise HomeAssistantError(f"Historical SAUR import blocked: {err}") from err
+    except Exception as err:
+        _LOGGER.warning("Historical SAUR import preflight failed before Recorder write: %s", err)
+        raise HomeAssistantError("Historical SAUR import preflight failed; check logs") from err
 
     return {
         "status": "queued",
