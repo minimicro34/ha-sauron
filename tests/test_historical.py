@@ -2,7 +2,7 @@
 
 import sys
 import types
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -867,6 +867,13 @@ async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confir
         "missing_marker",
         "historical_corruption",
         "wrong_existing_state",
+        "missing_history",
+        "missing_existing",
+        "first_history_timestamp",
+        "second_history_timestamp",
+        "existing_timestamp",
+        "wrong_history_total",
+        "partial_existing_sum",
     ],
 )
 async def test_positive_import_verification_waits_for_recorder(
@@ -897,6 +904,20 @@ async def test_positive_import_verification_waits_for_recorder(
         existing[0]["state"] += 0.1
     if case == "historical_corruption":
         history[0]["sum"] += 0.1
+    if case == "missing_history":
+        history.pop()
+    if case == "missing_existing":
+        existing.pop()
+    if case == "first_history_timestamp":
+        history[0]["start"] -= timedelta(hours=1)
+    if case == "second_history_timestamp":
+        history[1]["start"] -= timedelta(hours=1)
+    if case == "existing_timestamp":
+        existing[0]["start"] += timedelta(hours=1)
+    if case == "wrong_history_total":
+        history[0]["state"] += 0.1
+    if case == "partial_existing_sum":
+        existing[0]["sum"] -= 1.0
     rows = [
         {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
         for row in [*history, *existing]
@@ -959,6 +980,13 @@ async def test_positive_import_verification_waits_for_recorder(
             "missing_marker": "Missing positive import safety marker",
             "historical_corruption": "historical sums not yet verified",
             "wrong_existing_state": "existing daily consumption changed",
+            "missing_history": "historical row count mismatch",
+            "missing_existing": "existing row count mismatch",
+            "first_history_timestamp": "historical first timestamp mismatch",
+            "second_history_timestamp": "historical timestamps are not consecutive",
+            "existing_timestamp": "existing timestamps mismatch",
+            "wrong_history_total": "historical daily consumption total mismatch",
+            "partial_existing_sum": "existing sums not yet verified",
         }
         with pytest.raises(HomeAssistantError, match=errors_by_case[case]):
             await _async_repair_historical_baseline(hass, call)
