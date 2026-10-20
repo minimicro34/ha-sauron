@@ -428,3 +428,84 @@ def test_backfill_plan_rejects_incomplete_history():
         plan_historical_backfill(
             history, ledger, build_ledger_statistics(ledger, "UTC"), "UTC"
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tamper", [False, True])
+async def test_manual_import_queues_only_after_recorder_preflight(
+    monkeypatch, fake_entry, tamper
+):
+    from unittest.mock import Mock
+
+    from custom_components.sauron import _async_import_historical
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+
+    recorder_models = types.ModuleType("homeassistant.components.recorder.models.statistics")
+    recorder_models.StatisticMeanType = SimpleNamespace(NONE="none")
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.components.recorder.models.statistics", recorder_models
+    )
+    recorder_stats = types.ModuleType("homeassistant.components.recorder.statistics")
+    recorder_stats.async_add_external_statistics = Mock()
+    recorder_stats.statistics_during_period = Mock()
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.components.recorder.statistics", recorder_stats
+    )
+
+    fake_entry.data["subscription_id"] = "SUB001"
+    fake_entry.data["_dated_statistics_daily_ledger"] = {"2026-05-29": 0.2}
+    client = AsyncMock()
+    client.async_get_monthly.return_value = _payload(("2026-05-28", 0.4))
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    coordinator._client = client
+    rows = build_ledger_statistics({"2026-05-29": 0.2}, "Europe/Paris")
+    recorded = [
+        {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
+        for row in rows
+    ]
+    if tamper:
+        recorded[0]["sum"] = 0.5
+
+    async def executor_job(func):
+        return func()
+
+    recorder_stats.statistics_during_period.return_value = {
+        f"sauron:daily_water_{fake_entry.entry_id.lower()}": recorded
+    }
+    update_entry = Mock()
+    hass = SimpleNamespace(
+        data={DOMAIN: {fake_entry.entry_id: coordinator}},
+        config=SimpleNamespace(time_zone="Europe/Paris"),
+        config_entries=SimpleNamespace(async_update_entry=update_entry),
+        async_add_executor_job=executor_job,
+    )
+    call = SimpleNamespace(data={
+        "entry_id": fake_entry.entry_id,
+        "start": "2026-05-28",
+        "end": "2026-05-28",
+        "confirm": True,
+    })
+    if tamper:
+        with pytest.raises(HomeAssistantError, match="Recorder sum"):
+            await _async_import_historical(hass, call)
+        recorder_stats.async_add_external_statistics.assert_not_called()
+        update_entry.assert_not_called()
+    else:
+        result = await _async_import_historical(hass, call)
+        assert result["status"] == "queued"
+        assert result["recorder_write_completed"] is False
+        assert result["historical_days"] == 1
+        recorder_stats.async_add_external_statistics.assert_called_once()
+        update_entry.assert_called_once()
+        backup = update_entry.call_args.kwargs["data"]["_historical_import_backup"]
+        assert backup["recorder_rows"][0]["sum"] == 0.2
+        assert backup["historical_total_m3"] == 0.4
