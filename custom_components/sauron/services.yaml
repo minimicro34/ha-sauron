@@ -23,3 +23,23 @@ preview_historical:
       example: "2023-10-31"
       selector:
         date:
+
+preview_historical_coverage:
+  name: Preview historical coverage
+  description: Check up to 36 months of SAUR history and compare with the persisted daily ledger. Recorder is not compared or modified.
+  fields:
+    entry_id:
+      name: Configuration entry ID
+      required: true
+      selector:
+        text:
+    start:
+      name: Start date
+      required: true
+      selector:
+        date:
+    end:
+      name: End date
+      required: true
+      selector:
+        date:
