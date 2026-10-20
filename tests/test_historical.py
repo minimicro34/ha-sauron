@@ -857,7 +857,18 @@ async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confir
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("case", ["incomplete", "complete", "already_verified", "wrong_offset", "missing_marker", "historical_corruption", "wrong_existing_state"])
+@pytest.mark.parametrize(
+    "case",
+    [
+        "incomplete",
+        "complete",
+        "already_verified",
+        "wrong_offset",
+        "missing_marker",
+        "historical_corruption",
+        "wrong_existing_state",
+    ],
+)
 async def test_positive_import_verification_waits_for_recorder(
     monkeypatch, fake_entry, case
 ):
