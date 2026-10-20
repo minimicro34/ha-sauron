@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
+from itertools import pairwise
 from math import isclose, isfinite
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
@@ -205,14 +206,8 @@ def plan_historical_backfill(
         raise ValueError("Historical import must not overlap the existing ledger")
 
     expected = build_ledger_statistics(ledger, timezone)
-    if any(
-        right - left != timedelta(days=1)
-        for left, right in zip(
-            sorted(date.fromisoformat(key) for key in ledger)[:-1],
-            sorted(date.fromisoformat(key) for key in ledger)[1:],
-            strict=True,
-        )
-    ):
+    ordered_days = sorted(date.fromisoformat(key) for key in ledger)
+    if any(right - left != timedelta(days=1) for left, right in pairwise(ordered_days)):
         raise ValueError("Existing ledger has missing days")
     if len(recorder_rows) != len(expected):
         raise ValueError("Recorder row count differs from the existing ledger")
