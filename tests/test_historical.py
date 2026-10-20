@@ -991,6 +991,10 @@ async def test_repair_rejects_invalid_persisted_state_before_recorder(
 
     errors.HomeAssistantError = HomeAssistantError
     monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    recorder_module = types.ModuleType("homeassistant.components.recorder")
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder", recorder_module)
+    stats_module = types.ModuleType("homeassistant.components.recorder.statistics")
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder.statistics", stats_module)
     coordinator = object.__new__(SauronCoordinator)
     coordinator.config_entry = fake_entry
     fake_entry.data["_historical_import_backup"] = {
