@@ -206,6 +206,14 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         plan = plan_historical_backfill(
             preview, ledger, normalized, hass.config.time_zone
         )
+        # Do not enqueue a negative historical baseline: Energy interprets it
+        # as negative consumption on the first imported day. A safe migration
+        # must rebase both historical and existing Recorder sums together.
+        if plan["historical_rows"][0]["sum"] < 0:
+            raise ValueError(
+                "Historical import would create negative Energy consumption; "
+                "a verified Recorder baseline migration is required"
+            )
         # Guard against a changed ledger while the 32 monthly calls were running.
         if entry.data.get("_dated_statistics_daily_ledger") != ledger:
             raise ValueError("SAURon daily ledger changed during preflight")
