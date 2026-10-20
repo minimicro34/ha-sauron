@@ -8,7 +8,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from custom_components.sauron import _async_preview_historical, _async_preview_historical_coverage
+from custom_components.sauron import (
+    _async_preview_historical,
+    _async_preview_historical_coverage,
+)
 from custom_components.sauron.const import DOMAIN
 from custom_components.sauron.coordinator import SauronCoordinator
 from custom_components.sauron.historical import (
