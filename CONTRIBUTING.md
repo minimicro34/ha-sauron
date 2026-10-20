@@ -14,11 +14,14 @@ Clone the repository and install the development dependencies:
 git clone https://github.com/minimicro34/ha-sauron.git
 cd ha-sauron
 
+python3 -m venv .venv-sauron
+source .venv-sauron/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e . pytest pytest-asyncio pytest-cov ruff
+python -m pip install -r requirements-dev.txt
+python -m pip install -e .
 ```
 
-The project CI currently runs on Python 3.14.
+The project CI currently runs on Python 3.14. Use an isolated virtual environment for local tests so a globally installed Home Assistant does not interfere with Recorder mocks. The editable install supplies runtime dependencies (including Voluptuous), while `requirements-dev.txt` lists development tools and direct test imports.
 
 ---
 
