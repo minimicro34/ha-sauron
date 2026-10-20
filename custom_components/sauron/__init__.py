@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import asdict
-from itertools import pairwise
 from datetime import UTC, date, datetime, timedelta
 from datetime import time as datetime_time
+from itertools import pairwise
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
