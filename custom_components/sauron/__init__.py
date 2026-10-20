@@ -300,7 +300,7 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
         raise HomeAssistantError("Unknown SAURon config entry")
     entry = coordinator.config_entry
     backup = entry.data.get("_historical_import_backup")
-    if not isinstance(backup, dict) or backup.get("status") != "queued":
+    if not isinstance(backup, dict) or backup.get("status") not in ("queued", "queued_positive"):
         raise HomeAssistantError("No original historical import snapshot available")
     ledger = entry.data.get("_dated_statistics_daily_ledger")
     if not isinstance(ledger, dict) or not ledger:
@@ -388,6 +388,35 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
             for left, right in pairwise(rows)
         ):
             raise ValueError("Recorder timestamps not increasing")
+
+        if backup["status"] == "queued_positive":
+            if not isinstance(marker, dict) or marker.get("source") != "positive_import":
+                raise ValueError("Missing positive import safety marker")
+            offset = float(marker["offset_m3"])
+            if abs(offset - original_total) > 0.000001:
+                raise ValueError("Positive import offset mismatch")
+            if any(
+                abs(float(row["sum"]) - wanted["sum"] - offset) > 0.000001
+                for row, wanted in zip(existing, expected, strict=True)
+            ):
+                raise ValueError("Positive import existing sums not yet verified")
+            running = 0.0
+            for row in history:
+                running = round(running + float(row["state"]), 6)
+                if abs(float(row["sum"]) - running) > 0.000001:
+                    raise ValueError("Positive import historical sums not yet verified")
+            if marker["status"] != "verified":
+                hass.config_entries.async_update_entry(
+                    entry, data={
+                        **entry.data,
+                        marker_key: {**marker, "status": "verified"},
+                    },
+                )
+            return {
+                "status": "verified", "read_only": True,
+                "offset_m3": offset, "historical_days": len(history),
+                "existing_days": len(existing),
+            }
 
         # The pending/verified marker is checked against the actual database
         # before any new write, making repeat confirmations fail closed.
