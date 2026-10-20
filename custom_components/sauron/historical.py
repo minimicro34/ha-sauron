@@ -205,10 +205,10 @@ def plan_historical_backfill(
     if set(preview.values).intersection(ledger):
         raise ValueError("Historical import must not overlap the existing ledger")
 
-    expected = build_ledger_statistics(ledger, timezone)
     ordered_days = sorted(date.fromisoformat(key) for key in ledger)
     if any(right - left != timedelta(days=1) for left, right in pairwise(ordered_days)):
         raise ValueError("Existing ledger has missing days")
+    expected = build_ledger_statistics(ledger, timezone)
     if len(recorder_rows) != len(expected):
         raise ValueError("Recorder row count differs from the existing ledger")
     for actual, wanted in zip(recorder_rows, expected, strict=True):
