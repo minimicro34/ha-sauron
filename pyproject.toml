@@ -54,4 +54,4 @@ exclude = ["lovelace_examples*", "tests*"]
 name = "ha-sauron"
 version = "0.5.2"
 requires-python = ">=3.12"
-dependencies = ["aiohttp>=3.9.0"]
+dependencies = ["aiohttp>=3.9.0", "voluptuous>=0.15.0"]
