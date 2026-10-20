@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import asdict
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time as datetime_time, timedelta
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
@@ -161,9 +161,9 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
     zone = ZoneInfo(hass.config.time_zone)
     first_existing = date.fromisoformat(min(ledger))
     last_existing = date.fromisoformat(max(ledger))
-    first_utc = datetime.combine(start, time.min, tzinfo=zone).astimezone(UTC)
+    first_utc = datetime.combine(start, datetime_time.min, tzinfo=zone).astimezone(UTC)
     end_utc = datetime.combine(
-        last_existing + timedelta(days=1), time.min, tzinfo=zone
+        last_existing + timedelta(days=1), datetime_time.min, tzinfo=zone
     ).astimezone(UTC)
 
     # Recorder's database access must run in an executor, never in the event loop.
@@ -179,7 +179,7 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         if not recorded:
             raise ValueError("Recorder has no existing long-term statistics")
         existing_start_utc = datetime.combine(
-            first_existing, time.min, tzinfo=zone
+            first_existing, datetime_time.min, tzinfo=zone
         ).astimezone(UTC)
         if any(
             datetime.fromtimestamp(row["start"], tz=UTC) < existing_start_utc
