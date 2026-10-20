@@ -1,8 +1,10 @@
 """Read-only historical backfill preparation tests."""
 
 from datetime import date
+import sys
+import types
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -122,9 +124,6 @@ def test_non_mapping_payload_is_rejected():
 @pytest.mark.asyncio
 async def test_service_preview_read_only(monkeypatch, fake_entry):
     """Preview must report coverage and leave existing config data untouched."""
-    import sys
-    import types
-
     errors = types.ModuleType("homeassistant.exceptions")
     class HomeAssistantError(Exception):
         pass
@@ -167,8 +166,6 @@ async def test_service_preview_read_only(monkeypatch, fake_entry):
     ],
 )
 async def test_service_rejects_invalid_dates(monkeypatch, fake_entry, start, end):
-    import sys
-    import types
 
     errors = types.ModuleType("homeassistant.exceptions")
     class HomeAssistantError(Exception):
