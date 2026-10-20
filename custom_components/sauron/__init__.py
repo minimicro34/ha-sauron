@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.const import Platform
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import SauronApiClient, TokenCache
@@ -44,6 +43,8 @@ _PREVIEW_SCHEMA = vol.Schema(
 
 async def _async_preview_historical(hass: HomeAssistant, call: Any) -> dict[str, Any]:
     """Read-only diagnostic; never update Recorder or the config entry."""
+    from homeassistant.exceptions import HomeAssistantError
+
     coordinator = hass.data.get(DOMAIN, {}).get(call.data["entry_id"])
     if not isinstance(coordinator, SauronCoordinator):
         raise HomeAssistantError("Unknown SAURon config entry")
