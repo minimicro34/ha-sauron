@@ -208,14 +208,8 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         plan = plan_historical_backfill(
             preview, ledger, normalized, hass.config.time_zone
         )
-        # Do not enqueue a negative historical baseline: Energy interprets it
-        # as negative consumption on the first imported day. A safe migration
-        # must rebase both historical and existing Recorder sums together.
-        if plan["historical_rows"][0]["sum"] < 0:
-            raise ValueError(
-                "Historical import would create negative Energy consumption; "
-                "a verified Recorder baseline migration is required"
-            )
+        if plan["historical_total_m3"] <= 0:
+            raise ValueError("No positive historical consumption to import")
         # Guard against a changed ledger while the 32 monthly calls were running.
         if entry.data.get("_dated_statistics_daily_ledger") != ledger:
             raise ValueError("SAURon daily ledger changed during preflight")
@@ -253,7 +247,43 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
                 },
             },
         )
-        async_add_external_statistics(hass, metadata, plan["historical_rows"])
+        # Queue historical and existing rows in the same Recorder task. Existing
+        # daily states are unchanged; their sums receive the same positive offset.
+        # Persist a pending marker before enqueueing, so interrupted imports
+        # cannot be blindly retried or overwritten by automatic publication.
+        hass.config_entries.async_update_entry(
+            entry,
+            data={
+                **entry.data,
+                "_historical_import_backup": {
+                    **entry.data.get("_historical_import_backup", {}),
+                    "start": start.isoformat(),
+                    "end": end.isoformat(),
+                    "ledger": dict(ledger),
+                    "recorder_rows": [
+                        {
+                            "start": row["start"].isoformat(),
+                            "state": row["state"],
+                            "sum": row["sum"],
+                        }
+                        for row in normalized
+                    ],
+                    "historical_total_m3": plan["historical_total_m3"],
+                    "status": "queued_positive",
+                },
+                "_historical_baseline_repair": {
+                    "status": "pending",
+                    "offset_m3": plan["historical_total_m3"],
+                    "start": start.isoformat(),
+                    "statistic_id": statistic_id,
+                    "source": "positive_import",
+                },
+            },
+        )
+        async_add_external_statistics(
+            hass, metadata,
+            [*plan["historical_rows"], *plan["rebased_existing_rows"]],
+        )
     except (KeyError, TypeError, ValueError, RuntimeError) as err:
         _LOGGER.warning("Historical SAUR import blocked: %s", err)
         raise HomeAssistantError(f"Historical SAUR import blocked: {err}") from err
@@ -266,7 +296,8 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         "historical_days": plan["historical_days"],
         "historical_total_m3": plan["historical_total_m3"],
         "existing_days_verified": plan["existing_days"],
-        "existing_rows_unchanged": True,
+        "existing_states_unchanged": True,
+        "existing_sums_rebased": True,
         "recorder_write_completed": False,
         "note": "Recorder import is queued asynchronously; verify after Recorder processes it.",
     }
