@@ -179,3 +179,68 @@ def summarize_historical_coverage(
         "complete": preview.complete,
         "read_only": True,
     }
+
+
+def plan_historical_backfill(
+    preview: HistoricalPreview,
+    ledger: dict[str, float],
+    recorder_rows: list[dict[str, Any]],
+    timezone: str,
+) -> dict[str, Any]:
+    """Build a fail-closed backfill plan without writing to Recorder.
+
+    Existing hourly sums are preserved by shifting the historical baseline
+    backwards. This avoids silently rewriting existing water consumption.
+    """
+    from datetime import UTC, datetime, time
+    from math import isclose
+    from zoneinfo import ZoneInfo
+
+    from .statistics import build_ledger_statistics
+
+    if not preview.complete or not preview.values or not ledger:
+        raise ValueError("Incomplete historical data or missing existing ledger")
+    history_end = date.fromisoformat(max(preview.values))
+    ledger_start = date.fromisoformat(min(ledger))
+    if history_end + timedelta(days=1) != ledger_start:
+        raise ValueError("History must end exactly one day before the existing ledger")
+    if set(preview.values).intersection(ledger):
+        raise ValueError("Historical import must not overlap the existing ledger")
+
+    expected = build_ledger_statistics(ledger, timezone)
+    if len(recorder_rows) != len(expected):
+        raise ValueError("Recorder row count differs from the existing ledger")
+    for actual, wanted in zip(recorder_rows, expected, strict=True):
+        if actual.get("start") != wanted["start"]:
+            raise ValueError("Recorder timestamps differ from the existing ledger")
+        for key in ("state", "sum"):
+            value = actual.get(key)
+            if not isinstance(value, (float, int)) or not isclose(
+                float(value), float(wanted[key]), rel_tol=0, abs_tol=0.000001
+            ):
+                raise ValueError(f"Recorder {key} differs from the existing ledger")
+
+    total_history = round(sum(preview.values.values()), 6)
+    zone = ZoneInfo(timezone)
+    cumulative = -total_history
+    historical_rows: list[dict[str, Any]] = []
+    for day_text, volume in sorted(preview.values.items()):
+        day = date.fromisoformat(day_text)
+        cumulative = round(cumulative + volume, 6)
+        historical_rows.append(
+            {
+                "start": datetime.combine(day, time(23), tzinfo=zone).astimezone(UTC),
+                "state": round(volume, 6),
+                "sum": cumulative,
+            }
+        )
+    if not isclose(cumulative, 0.0, rel_tol=0, abs_tol=0.000001):
+        raise ValueError("Historical cumulative sum does not join existing baseline")
+    return {
+        "historical_days": len(historical_rows),
+        "existing_days": len(expected),
+        "historical_total_m3": total_history,
+        "historical_rows": historical_rows,
+        "existing_rows_unchanged": True,
+        "recorder_verified": True,
+    }
