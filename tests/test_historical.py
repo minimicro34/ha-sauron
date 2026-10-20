@@ -964,3 +964,55 @@ async def test_positive_import_verification_waits_for_recorder(
             await _async_repair_historical_baseline(hass, call)
         update_entry.assert_not_called()
     adjust.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("case", "message"),
+    [
+        ("unknown_entry", "Unknown SAURon"),
+        ("missing_backup", "No original historical import snapshot"),
+        ("invalid_backup", "No original historical import snapshot"),
+        ("invalid_backup_status", "No original historical import snapshot"),
+        ("missing_ledger", "Missing original SAURon ledger"),
+        ("invalid_marker", "Invalid repair marker"),
+        ("invalid_marker_status", "Invalid repair marker"),
+    ],
+)
+async def test_repair_rejects_invalid_persisted_state_before_recorder(
+    monkeypatch, fake_entry, case, message
+):
+    from custom_components.sauron import _async_repair_historical_baseline
+
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    fake_entry.data["_historical_import_backup"] = {
+        "status": "queued", "start": "2026-05-27", "end": "2026-05-28"
+    }
+    fake_entry.data["_dated_statistics_daily_ledger"] = {"2026-05-29": 0.2}
+    hass = SimpleNamespace(data={DOMAIN: {fake_entry.entry_id: coordinator}})
+    if case == "unknown_entry":
+        hass.data[DOMAIN] = {}
+    elif case == "missing_backup":
+        del fake_entry.data["_historical_import_backup"]
+    elif case == "invalid_backup":
+        fake_entry.data["_historical_import_backup"] = "corrupt"
+    elif case == "invalid_backup_status":
+        fake_entry.data["_historical_import_backup"]["status"] = "failed"
+    elif case == "missing_ledger":
+        del fake_entry.data["_dated_statistics_daily_ledger"]
+    elif case == "invalid_marker":
+        fake_entry.data["_historical_baseline_repair"] = "corrupt"
+    elif case == "invalid_marker_status":
+        fake_entry.data["_historical_baseline_repair"] = {"status": "failed"}
+    with pytest.raises(HomeAssistantError, match=message):
+        await _async_repair_historical_baseline(
+            hass, SimpleNamespace(data={"entry_id": fake_entry.entry_id, "confirm": True})
+        )
