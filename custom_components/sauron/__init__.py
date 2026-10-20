@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import asdict
-from datetime import date
+from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
@@ -22,7 +22,11 @@ from .const import (
     TOKEN_REFRESH_MARGIN_S,
 )
 from .coordinator import SauronCoordinator
-from .historical import fetch_historical_preview, summarize_historical_coverage
+from .historical import (
+    fetch_historical_preview,
+    plan_historical_backfill,
+    summarize_historical_coverage,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -33,6 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 _PREVIEW_SERVICE = "preview_historical"
 _COVERAGE_SERVICE = "preview_historical_coverage"
+_IMPORT_SERVICE = "import_historical"
 _PREVIEW_SCHEMA = vol.Schema(
     {
         vol.Required("entry_id"): str,
@@ -119,6 +124,113 @@ async def _async_preview_historical_coverage(hass: HomeAssistant, call: Any) -> 
     return summarize_historical_coverage(preview, existing)
 
 
+
+
+async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, Any]:
+    """Queue a manual backfill only after verifying every existing Recorder row."""
+    from homeassistant.components.recorder.models.statistics import StatisticMeanType
+    from homeassistant.components.recorder.statistics import (
+        async_add_external_statistics,
+        statistics_during_period,
+    )
+    from homeassistant.exceptions import HomeAssistantError
+
+    coordinator = hass.data.get(DOMAIN, {}).get(call.data["entry_id"])
+    if not isinstance(coordinator, SauronCoordinator):
+        raise HomeAssistantError("Unknown SAURon config entry")
+    if call.data.get("confirm") is not True:
+        raise HomeAssistantError("Explicit confirm: true is required")
+    entry = coordinator.config_entry
+    ledger = entry.data.get("_dated_statistics_daily_ledger")
+    if not isinstance(ledger, dict) or not ledger:
+        raise HomeAssistantError("Missing persisted SAURon daily ledger")
+    try:
+        start = date.fromisoformat(call.data["start"])
+        end = date.fromisoformat(call.data["end"])
+        months = (end.year - start.year) * 12 + end.month - start.month + 1
+        if start > end or months > 36:
+            raise ValueError("Historical import requires at most 36 calendar months")
+        if end + timedelta(days=1) != date.fromisoformat(min(ledger)):
+            raise ValueError("Historical period must join the existing ledger exactly")
+    except ValueError as err:
+        raise HomeAssistantError(str(err)) from err
+
+    statistic_id = f"{DOMAIN}:daily_water_{entry.entry_id.lower()}"
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo(hass.config.time_zone)
+    first_existing = date.fromisoformat(min(ledger))
+    last_existing = date.fromisoformat(max(ledger))
+    first_utc = datetime.combine(start, time.min, tzinfo=zone).astimezone(UTC)
+    end_utc = datetime.combine(
+        last_existing + timedelta(days=1), time.min, tzinfo=zone
+    ).astimezone(UTC)
+
+    # Recorder's database access must run in an executor, never in the event loop.
+    def _read_recorder() -> list[dict[str, Any]]:
+        data = statistics_during_period(
+            hass, first_utc, end_utc, {statistic_id}, "hour", None,
+            {"state", "sum"},
+        )
+        return list(data.get(statistic_id, []))
+
+    try:
+        recorded = await hass.async_add_executor_job(_read_recorder)
+        if not recorded:
+            raise ValueError("Recorder has no existing long-term statistics")
+        existing_start_utc = datetime.combine(
+            first_existing, time.min, tzinfo=zone
+        ).astimezone(UTC)
+        if any(
+            datetime.fromtimestamp(row["start"], tz=UTC) < existing_start_utc
+            for row in recorded
+        ):
+            raise ValueError("Recorder already contains historical statistics")
+        normalized = [
+            {
+                "start": datetime.fromtimestamp(row["start"], tz=UTC),
+                "state": row.get("state"),
+                "sum": row.get("sum"),
+            }
+            for row in recorded
+        ]
+        preview = await fetch_historical_preview(
+            coordinator._client,
+            entry.data["subscription_id"],
+            start,
+            end,
+            ledger,
+        )
+        plan = plan_historical_backfill(
+            preview, ledger, normalized, hass.config.time_zone
+        )
+        # Guard against a changed ledger while the 32 monthly calls were running.
+        if entry.data.get("_dated_statistics_daily_ledger") != ledger:
+            raise ValueError("SAURon daily ledger changed during preflight")
+        metadata = {
+            "statistic_id": statistic_id,
+            "source": DOMAIN,
+            "name": f"SAURon dated water ({entry.data['subscription_id']})",
+            "unit_of_measurement": "m³",
+            "unit_class": "volume",
+            "has_sum": True,
+            "mean_type": StatisticMeanType.NONE,
+        }
+        async_add_external_statistics(hass, metadata, plan["historical_rows"])
+    except (KeyError, TypeError, ValueError, RuntimeError) as err:
+        _LOGGER.warning("Historical SAUR import blocked: %s", err)
+        raise HomeAssistantError(f"Historical SAUR import blocked: {err}") from err
+
+    return {
+        "status": "queued",
+        "historical_days": plan["historical_days"],
+        "historical_total_m3": plan["historical_total_m3"],
+        "existing_days_verified": plan["existing_days"],
+        "existing_rows_unchanged": True,
+        "recorder_write_completed": False,
+        "note": "Recorder import is queued asynchronously; verify after Recorder processes it.",
+    }
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up SAURon from a config entry."""
     session = async_get_clientsession(hass)
@@ -178,6 +290,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _COVERAGE_SERVICE,
             _handle_coverage,
             schema=_PREVIEW_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+
+
+    if hasattr(hass, "services") and not hass.services.has_service(DOMAIN, _IMPORT_SERVICE):
+        from homeassistant.core import SupportsResponse
+
+        async def _handle_import(call: Any) -> dict[str, Any]:
+            return await _async_import_historical(hass, call)
+
+        hass.services.async_register(
+            DOMAIN,
+            _IMPORT_SERVICE,
+            _handle_import,
+            schema=_PREVIEW_SCHEMA.extend({vol.Required("confirm"): bool}),
             supports_response=SupportsResponse.ONLY,
         )
 
