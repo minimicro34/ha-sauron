@@ -7,6 +7,7 @@ import time
 from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 from datetime import time as datetime_time
+from itertools import pairwise
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
@@ -39,6 +40,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 _PREVIEW_SERVICE = "preview_historical"
 _COVERAGE_SERVICE = "preview_historical_coverage"
 _IMPORT_SERVICE = "import_historical"
+_REPAIR_SERVICE = "repair_historical_baseline"
 _PREVIEW_SCHEMA = vol.Schema(
     {
         vol.Required("entry_id"): str,
@@ -206,6 +208,8 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         plan = plan_historical_backfill(
             preview, ledger, normalized, hass.config.time_zone
         )
+        if plan["historical_total_m3"] <= 0:
+            raise ValueError("No positive historical consumption to import")
         # Guard against a changed ledger while the 32 monthly calls were running.
         if entry.data.get("_dated_statistics_daily_ledger") != ledger:
             raise ValueError("SAURon daily ledger changed during preflight")
@@ -222,11 +226,16 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         backup_key = "_historical_import_backup"
         if backup_key in entry.data:
             raise ValueError("Previous historical import attempt recorded; inspect before retry")
+        # Queue historical and existing rows in the same Recorder task. Existing
+        # daily states are unchanged; their sums receive the same positive offset.
+        # Persist a pending marker before enqueueing, so interrupted imports
+        # cannot be blindly retried or overwritten by automatic publication.
         hass.config_entries.async_update_entry(
             entry,
             data={
                 **entry.data,
-                backup_key: {
+                "_historical_import_backup": {
+                    **entry.data.get("_historical_import_backup", {}),
                     "start": start.isoformat(),
                     "end": end.isoformat(),
                     "ledger": dict(ledger),
@@ -239,11 +248,21 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
                         for row in normalized
                     ],
                     "historical_total_m3": plan["historical_total_m3"],
-                    "status": "queued",
+                    "status": "queued_positive",
+                },
+                "_historical_baseline_repair": {
+                    "status": "pending",
+                    "offset_m3": plan["historical_total_m3"],
+                    "start": start.isoformat(),
+                    "statistic_id": statistic_id,
+                    "source": "positive_import",
                 },
             },
         )
-        async_add_external_statistics(hass, metadata, plan["historical_rows"])
+        async_add_external_statistics(
+            hass, metadata,
+            [*plan["historical_rows"], *plan["rebased_existing_rows"]],
+        )
     except (KeyError, TypeError, ValueError, RuntimeError) as err:
         _LOGGER.warning("Historical SAUR import blocked: %s", err)
         raise HomeAssistantError(f"Historical SAUR import blocked: {err}") from err
@@ -256,10 +275,236 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         "historical_days": plan["historical_days"],
         "historical_total_m3": plan["historical_total_m3"],
         "existing_days_verified": plan["existing_days"],
-        "existing_rows_unchanged": True,
+        "existing_states_unchanged": True,
+        "existing_sums_rebased": True,
         "recorder_write_completed": False,
         "note": "Recorder import is queued asynchronously; verify after Recorder processes it.",
     }
+
+
+async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> dict[str, Any]:
+    """Verify all Recorder rows before queueing a single cumulative adjustment.
+
+    First call without confirmation is read-only. A confirmed call queues the
+    official Recorder adjustment, marks it pending, and requires a later
+    read-only call to verify persistence. Never adjusts twice.
+    """
+    from zoneinfo import ZoneInfo
+
+    from homeassistant.components import recorder
+    from homeassistant.components.recorder.statistics import statistics_during_period
+    from homeassistant.exceptions import HomeAssistantError
+
+    coordinator = hass.data.get(DOMAIN, {}).get(call.data["entry_id"])
+    if not isinstance(coordinator, SauronCoordinator):
+        raise HomeAssistantError("Unknown SAURon config entry")
+    entry = coordinator.config_entry
+    backup = entry.data.get("_historical_import_backup")
+    if not isinstance(backup, dict) or backup.get("status") not in ("queued", "queued_positive"):
+        raise HomeAssistantError("No original historical import snapshot available")
+    ledger = entry.data.get("_dated_statistics_daily_ledger")
+    if not isinstance(ledger, dict) or not ledger:
+        raise HomeAssistantError("Missing original SAURon ledger")
+    marker_key = "_historical_baseline_repair"
+    marker = entry.data.get(marker_key)
+    if marker is not None and (
+        not isinstance(marker, dict)
+        or marker.get("status") not in ("pending", "verified")
+    ):
+        raise HomeAssistantError("Invalid repair marker; manual review required")
+    try:
+        from .historical import plan_positive_baseline_repair
+        from .statistics import build_ledger_statistics
+
+        zone = ZoneInfo(hass.config.time_zone)
+        history_start = date.fromisoformat(backup["start"])
+        history_end = date.fromisoformat(backup["end"])
+        existing_start = date.fromisoformat(min(ledger))
+        if history_end + timedelta(days=1) != existing_start:
+            raise ValueError("Historical and existing periods do not join")
+        statistic_id = f"{DOMAIN}:daily_water_{entry.entry_id.lower()}"
+        first_utc = datetime.combine(
+            history_start, datetime_time.min, tzinfo=zone
+        ).astimezone(UTC)
+        end_utc = datetime.combine(
+            date.fromisoformat(max(ledger)) + timedelta(days=1),
+            datetime_time.min, tzinfo=zone,
+        ).astimezone(UTC)
+
+        def _read_recorder() -> list[dict[str, Any]]:
+            data = statistics_during_period(
+                hass, first_utc, end_utc, {statistic_id}, "hour", None,
+                {"state", "sum"},
+            )
+            return list(data.get(statistic_id, []))
+
+        raw = await recorder.get_instance(hass).async_add_executor_job(_read_recorder)
+        rows = [
+            {
+                "start": datetime.fromtimestamp(row["start"], tz=UTC),
+                "state": row.get("state"),
+                "sum": row.get("sum"),
+            }
+            for row in raw
+        ]
+        first_existing_utc = datetime.combine(
+            existing_start, datetime_time.min, tzinfo=zone
+        ).astimezone(UTC)
+        history = [row for row in rows if row["start"] < first_existing_utc]
+        existing = [row for row in rows if row["start"] >= first_existing_utc]
+        expected = build_ledger_statistics(ledger, hass.config.time_zone)
+        if len(history) != (history_end - history_start).days + 1:
+            raise ValueError("Recorder historical row count mismatch")
+        if len(existing) != len(expected):
+            raise ValueError("Recorder existing row count mismatch")
+        if not history or history[0]["start"] != datetime.combine(
+            history_start, datetime_time(23), tzinfo=zone
+        ).astimezone(UTC):
+            raise ValueError("Recorder historical first timestamp mismatch")
+        if any(
+            row["start"] != datetime.combine(
+                history_start + timedelta(days=index),
+                datetime_time(23), tzinfo=zone,
+            ).astimezone(UTC)
+            for index, row in enumerate(history)
+        ):
+            raise ValueError("Recorder historical timestamps are not consecutive")
+        if any(
+            actual["start"] != wanted["start"]
+            for actual, wanted in zip(existing, expected, strict=True)
+        ):
+            raise ValueError("Recorder existing timestamps mismatch")
+        if any(
+            actual["state"] is None
+            or abs(float(actual["state"]) - wanted["state"]) > 0.000001
+            for actual, wanted in zip(existing, expected, strict=True)
+        ):
+            raise ValueError("Recorder existing daily consumption changed")
+        original_total = float(backup["historical_total_m3"])
+        if abs(sum(float(row["state"]) for row in history) - original_total) > 0.00001:
+            raise ValueError("Recorder historical daily consumption total mismatch")
+        if any(
+            right["start"] <= left["start"]
+            for left, right in pairwise(rows)
+        ):
+            raise ValueError("Recorder timestamps not increasing")
+
+        if backup["status"] == "queued_positive":
+            if not isinstance(marker, dict) or marker.get("source") != "positive_import":
+                raise ValueError("Missing positive import safety marker")
+            offset = float(marker["offset_m3"])
+            if abs(offset - original_total) > 0.000001:
+                raise ValueError("Positive import offset mismatch")
+            if any(
+                abs(float(row["sum"]) - wanted["sum"] - offset) > 0.000001
+                for row, wanted in zip(existing, expected, strict=True)
+            ):
+                raise ValueError("Positive import existing sums not yet verified")
+            running = 0.0
+            for row in history:
+                running = round(running + float(row["state"]), 6)
+                if abs(float(row["sum"]) - running) > 0.000001:
+                    raise ValueError("Positive import historical sums not yet verified")
+            if marker["status"] != "verified":
+                hass.config_entries.async_update_entry(
+                    entry, data={
+                        **entry.data,
+                        marker_key: {**marker, "status": "verified"},
+                    },
+                )
+            return {
+                "status": "verified", "read_only": True,
+                "offset_m3": offset, "historical_days": len(history),
+                "existing_days": len(existing),
+            }
+
+        # The pending/verified marker is checked against the actual database
+        # before any new write, making repeat confirmations fail closed.
+        if marker is not None:
+            offset = float(marker["offset_m3"])
+            rebased_expected = [
+                round(wanted["sum"] + offset, 6) for wanted in expected
+            ]
+            if all(
+                abs(float(actual["sum"]) - wanted) <= 0.000001
+                for actual, wanted in zip(existing, rebased_expected, strict=True)
+            ) and all(
+                abs(
+                    float(row["sum"]) - (
+                        round(
+                            -original_total
+                            + sum(float(item["state"]) for item in history[:index + 1])
+                            + offset,
+                            6,
+                        )
+                    )
+                ) <= 0.000001
+                for index, row in enumerate(history)
+            ):
+                if marker["status"] != "verified":
+                    hass.config_entries.async_update_entry(
+                        entry, data={
+                            **entry.data,
+                            marker_key: {**marker, "status": "verified"},
+                        },
+                    )
+                return {
+                    "status": "verified", "read_only": True,
+                    "offset_m3": offset, "historical_days": len(history),
+                    "existing_days": len(existing),
+                }
+            raise ValueError(
+                "Repair already queued but Recorder is not verified; "
+                "wait for Recorder or inspect manually; never retry"
+            )
+
+        if any(
+            abs(float(actual["sum"]) - wanted["sum"]) > 0.000001
+            for actual, wanted in zip(existing, expected, strict=True)
+        ):
+            raise ValueError("Recorder original existing sums changed")
+        plan = plan_positive_baseline_repair(history, existing)
+        if abs(plan["offset_m3"] - original_total) > 0.000001:
+            raise ValueError("Calculated repair offset differs from original snapshot")
+        # Cross-check all original imported historical sums, not just the total.
+        running = -original_total
+        for row in history:
+            running = round(running + float(row["state"]), 6)
+            if abs(float(row["sum"]) - running) > 0.000001:
+                raise ValueError("Recorder historical cumulative sum mismatch")
+        response = {
+            "status": "ready", "read_only": True,
+            "offset_m3": plan["offset_m3"],
+            "historical_days": len(history), "existing_days": len(existing),
+            "existing_states_unchanged": True,
+            "existing_sums_must_change": True,
+        }
+        if call.data.get("confirm") is not True:
+            return response
+        # Persist the idempotency marker BEFORE queueing Recorder's adjustment.
+        # A crash after this marker is saved must be reviewed rather than
+        # automatically queueing a second adjustment.
+        hass.config_entries.async_update_entry(
+            entry, data={
+                **entry.data,
+                marker_key: {
+                    "status": "pending", "offset_m3": plan["offset_m3"],
+                    "start": history_start.isoformat(),
+                    "statistic_id": statistic_id,
+                },
+            },
+        )
+        recorder.get_instance(hass).async_adjust_statistics(
+            statistic_id, history[0]["start"], plan["offset_m3"], "m³"
+        )
+        return {
+            **response, "status": "queued", "read_only": False,
+            "recorder_write_completed": False,
+            "note": "Call again without confirm to verify Recorder persistence.",
+        }
+    except (KeyError, TypeError, ValueError, OverflowError) as err:
+        raise HomeAssistantError(f"Historical baseline repair blocked: {err}") from err
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up SAURon from a config entry."""
@@ -335,6 +580,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _IMPORT_SERVICE,
             _handle_import,
             schema=_PREVIEW_SCHEMA.extend({vol.Required("confirm"): bool}),
+            supports_response=SupportsResponse.ONLY,
+        )
+
+    if hasattr(hass, "services") and not hass.services.has_service(DOMAIN, _REPAIR_SERVICE):
+        from homeassistant.core import SupportsResponse
+
+        async def _handle_repair(call: Any) -> dict[str, Any]:
+            return await _async_repair_historical_baseline(hass, call)
+
+        hass.services.async_register(
+            DOMAIN,
+            _REPAIR_SERVICE,
+            _handle_repair,
+            schema=vol.Schema({
+                vol.Required("entry_id"): str,
+                vol.Optional("confirm", default=False): bool,
+            }),
             supports_response=SupportsResponse.ONLY,
         )
 

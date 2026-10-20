@@ -144,6 +144,30 @@ To use the historical daily water data:
 
 The **Estimated water index** sensor remains available as a separate, reconstructed cumulative reading. Do not configure both the dated statistic and the estimated index as independent water sources for the same meter, or consumption may be counted twice.
 
+### Historical consumption tools (v0.6.3)
+
+SAURon exposes maintenance actions in **Developer Tools → Actions**. These are intentionally separate from the integration's normal configuration, because importing or repairing historical Recorder data is an exceptional operation.
+
+| Action | Purpose | Changes Recorder? |
+|---|---|---|
+| `sauron.preview_historical` | Inspect up to 36 days of SAUR daily readings | No |
+| `sauron.preview_historical_coverage` | Audit up to 36 calendar months, including gaps and ledger overlap | No |
+| `sauron.import_historical` | Guarded import of older daily readings contiguous with the existing ledger | Yes, after explicit confirmation and preflight; historical and existing cumulative sums are rebased together |
+| `sauron.repair_historical_baseline` | Inspect and correct the negative cumulative baseline left by an earlier beta import | Only with `confirm: true` |
+
+**Safety:** Keep a full Home Assistant backup before any write. Never rerun a confirmed import or baseline repair because an asynchronous action reports `queued`. The repair action supports a read-only preview and a subsequent read-only verification; a successful verification returns `status: verified`. The correction shifts cumulative sums without changing daily consumption states, and SAURon preserves the verified offset on later statistics publications.
+
+Example of a **read-only** baseline repair inspection (replace the entry ID):
+
+```yaml
+action: sauron.repair_historical_baseline
+data:
+  entry_id: YOUR_CONFIG_ENTRY_ID
+  confirm: false
+```
+
+Historical coverage may contain unavailable SAUR dates. Missing dates are never silently invented as zero consumption. A confirmed import queues one Recorder task containing both the positive historical sums and the rebased existing sums; verify completion with the read-only `sauron.repair_historical_baseline` action before automatic publication resumes.
+
 ### `utility_meter` (optional)
 
 You can create additional resettable counters from the estimated cumulative index:

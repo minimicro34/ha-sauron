@@ -327,8 +327,9 @@ def test_backfill_plan_preserves_existing_recorder_sums():
     result = plan_historical_backfill(history, ledger, existing, "Europe/Paris")
     assert result["recorder_verified"] is True
     assert result["historical_days"] == 2
-    assert result["existing_rows_unchanged"] is True
-    assert [row["sum"] for row in result["historical_rows"]] == [-0.6, 0.0]
+    assert result["existing_states_unchanged"] is True
+    assert [row["sum"] for row in result["historical_rows"]] == [0.4, 1.0]
+    assert [row["sum"] for row in result["rebased_existing_rows"]] == [1.2, 1.5]
     assert existing == build_ledger_statistics(ledger, "Europe/Paris")
 
 
@@ -463,7 +464,9 @@ async def test_manual_import_queues_only_after_recorder_preflight(
     fake_entry.data["subscription_id"] = "SUB001"
     fake_entry.data["_dated_statistics_daily_ledger"] = {"2026-05-29": 0.2}
     client = AsyncMock()
-    client.async_get_monthly.return_value = _payload(("2026-05-28", 0.4))
+    client.async_get_monthly.return_value = _payload(
+        ("2026-05-27", 0.1), ("2026-05-28", 0.4)
+    )
     coordinator = object.__new__(SauronCoordinator)
     coordinator.config_entry = fake_entry
     coordinator._client = client
@@ -497,7 +500,7 @@ async def test_manual_import_queues_only_after_recorder_preflight(
     )
     call = SimpleNamespace(data={
         "entry_id": fake_entry.entry_id,
-        "start": "2026-05-28",
+        "start": "2026-05-27",
         "end": "2026-05-28",
         "confirm": True,
     })
@@ -509,13 +512,12 @@ async def test_manual_import_queues_only_after_recorder_preflight(
     else:
         result = await _async_import_historical(hass, call)
         assert result["status"] == "queued"
-        assert result["recorder_write_completed"] is False
-        assert result["historical_days"] == 1
-        recorder_stats.async_add_external_statistics.assert_called_once()
-        update_entry.assert_called_once()
-        backup = update_entry.call_args.kwargs["data"]["_historical_import_backup"]
-        assert backup["recorder_rows"][0]["sum"] == 0.2
-        assert backup["historical_total_m3"] == 0.4
+        queued = recorder_stats.async_add_external_statistics.call_args.args[2]
+        assert [row["sum"] for row in queued] == [0.1, 0.5, 0.7]
+        assert [row["state"] for row in queued] == [0.1, 0.4, 0.2]
+        marker = update_entry.call_args.kwargs["data"]["_historical_baseline_repair"]
+        assert marker["status"] == "pending"
+        assert marker["offset_m3"] == 0.5
 
 
 @pytest.mark.asyncio
@@ -728,3 +730,206 @@ async def test_read_only_services_fail_closed(
         )
     if case != "api_error":
         coordinator._client.async_get_monthly.assert_not_awaited()
+
+
+def test_positive_baseline_repair_preserves_daily_consumption():
+    from custom_components.sauron.historical import (
+        plan_historical_backfill,
+        plan_positive_baseline_repair,
+    )
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    preview = preview_monthly_payloads(
+        [_payload(("2026-05-27", 0.4), ("2026-05-28", 0.6))],
+        date(2026, 5, 27), date(2026, 5, 28),
+    )
+    ledger = {"2026-05-29": 0.2, "2026-05-30": 0.3}
+    existing = build_ledger_statistics(ledger, "Europe/Paris")
+    plan = plan_historical_backfill(preview, ledger, existing, "Europe/Paris")
+    historical = [
+        {**row, "sum": round(row["sum"] - plan["historical_total_m3"], 6)}
+        for row in plan["historical_rows"]
+    ]
+    assert [row["sum"] for row in historical] == [-0.6, 0.0]
+    repaired = plan_positive_baseline_repair(historical, existing)
+    assert repaired["read_only"] is True
+    assert repaired["recorder_write_completed"] is False
+    assert repaired["offset_m3"] == 1.0
+    assert [row["sum"] for row in repaired["historical_rows"]] == [0.4, 1.0]
+    assert [row["sum"] for row in repaired["existing_rows"]] == [1.2, 1.5]
+    assert [row["state"] for row in repaired["existing_rows"]] == [0.2, 0.3]
+    assert [row["sum"] for row in existing] == [0.2, 0.5]
+
+
+def test_positive_baseline_repair_rejects_inconsistent_series():
+    from custom_components.sauron.historical import plan_positive_baseline_repair
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    historical = build_ledger_statistics({"2026-05-28": 0.4}, "UTC")
+    existing = build_ledger_statistics({"2026-05-29": 0.2}, "UTC")
+    with pytest.raises(ValueError, match="Historical sum does not join"):
+        plan_positive_baseline_repair(historical, existing)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("confirm", [False, True])
+async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confirm):
+    from unittest.mock import Mock
+
+    from custom_components.sauron import _async_repair_historical_baseline
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+
+    historical = build_ledger_statistics({
+        "2026-05-27": 0.4, "2026-05-28": 0.6
+    }, "Europe/Paris")
+    for row in historical:
+        row["sum"] -= 1.0
+    ledger = {"2026-05-29": 0.2, "2026-05-30": 0.3}
+    existing = build_ledger_statistics(ledger, "Europe/Paris")
+    rows = [
+        {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
+        for row in [*historical, *existing]
+    ]
+    fake_entry.data["_dated_statistics_daily_ledger"] = ledger
+    fake_entry.data["_historical_import_backup"] = {
+        "start": "2026-05-27", "end": "2026-05-28",
+        "historical_total_m3": 1.0, "status": "queued",
+    }
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    async def executor_job(func):
+        return func()
+    adjust = Mock()
+    recorder_module = types.ModuleType("homeassistant.components.recorder")
+    recorder_module.get_instance = lambda _hass: SimpleNamespace(
+        async_add_executor_job=executor_job,
+        async_adjust_statistics=adjust,
+    )
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder", recorder_module)
+    stats = types.ModuleType("homeassistant.components.recorder.statistics")
+    stats.statistics_during_period = Mock(return_value={
+        f"sauron:daily_water_{fake_entry.entry_id.lower()}": rows
+    })
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder.statistics", stats)
+    update_entry = Mock()
+    hass = SimpleNamespace(
+        data={DOMAIN: {fake_entry.entry_id: coordinator}},
+        config=SimpleNamespace(time_zone="Europe/Paris"),
+        config_entries=SimpleNamespace(async_update_entry=update_entry),
+    )
+    call = SimpleNamespace(data={"entry_id": fake_entry.entry_id, "confirm": confirm})
+    result = await _async_repair_historical_baseline(hass, call)
+    assert result["offset_m3"] == 1.0
+    assert result["historical_days"] == 2
+    assert result["existing_days"] == 2
+    if confirm:
+        assert result["status"] == "queued"
+        adjust.assert_called_once()
+        assert adjust.call_args.args[2:] == (1.0, "m³")
+        assert update_entry.call_args.kwargs["data"][
+            "_historical_baseline_repair"
+        ]["status"] == "pending"
+        # Simulate Recorder completing its queued adjustment and persisting the
+        # pending marker, then verify without ever queueing a second write.
+        fake_entry.data.update(update_entry.call_args.kwargs["data"])
+        for row in rows:
+            row["sum"] += 1.0
+        result = await _async_repair_historical_baseline(
+            hass, SimpleNamespace(data={"entry_id": fake_entry.entry_id})
+        )
+        assert result["status"] == "verified"
+        assert update_entry.call_args.kwargs["data"][
+            "_historical_baseline_repair"
+        ]["status"] == "verified"
+        adjust.assert_called_once()
+    else:
+        assert result["status"] == "ready"
+        adjust.assert_not_called()
+        update_entry.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("complete", [False, True])
+async def test_positive_import_verification_waits_for_recorder(
+    monkeypatch, fake_entry, complete
+):
+    from unittest.mock import Mock
+
+    from custom_components.sauron import _async_repair_historical_baseline
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+
+    history = build_ledger_statistics(
+        {"2026-05-27": 0.4, "2026-05-28": 0.6}, "Europe/Paris"
+    )
+    existing = build_ledger_statistics(
+        {"2026-05-29": 0.2, "2026-05-30": 0.3}, "Europe/Paris"
+    )
+    if complete:
+        existing = [{**row, "sum": row["sum"] + 1.0} for row in existing]
+    rows = [
+        {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
+        for row in [*history, *existing]
+    ]
+    fake_entry.data["_dated_statistics_daily_ledger"] = {
+        "2026-05-29": 0.2, "2026-05-30": 0.3
+    }
+    fake_entry.data["_historical_import_backup"] = {
+        "start": "2026-05-27", "end": "2026-05-28",
+        "historical_total_m3": 1.0, "status": "queued_positive",
+    }
+    fake_entry.data["_historical_baseline_repair"] = {
+        "status": "pending", "offset_m3": 1.0, "source": "positive_import"
+    }
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+
+    async def executor_job(func):
+        return func()
+
+    adjust = Mock()
+    recorder_module = types.ModuleType("homeassistant.components.recorder")
+    recorder_module.get_instance = lambda _hass: SimpleNamespace(
+        async_add_executor_job=executor_job,
+        async_adjust_statistics=adjust,
+    )
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder", recorder_module)
+    stats = types.ModuleType("homeassistant.components.recorder.statistics")
+    stats.statistics_during_period = Mock(return_value={
+        f"sauron:daily_water_{fake_entry.entry_id.lower()}": rows
+    })
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder.statistics", stats)
+    update_entry = Mock()
+    hass = SimpleNamespace(
+        data={DOMAIN: {fake_entry.entry_id: coordinator}},
+        config=SimpleNamespace(time_zone="Europe/Paris"),
+        config_entries=SimpleNamespace(async_update_entry=update_entry),
+    )
+    call = SimpleNamespace(data={"entry_id": fake_entry.entry_id, "confirm": False})
+    if complete:
+        result = await _async_repair_historical_baseline(hass, call)
+        assert result["status"] == "verified"
+        assert result["offset_m3"] == 1.0
+        assert update_entry.call_args.kwargs["data"][
+            "_historical_baseline_repair"
+        ]["status"] == "verified"
+    else:
+        with pytest.raises(HomeAssistantError, match="existing sums not yet verified"):
+            await _async_repair_historical_baseline(hass, call)
+        update_entry.assert_not_called()
+    adjust.assert_not_called()

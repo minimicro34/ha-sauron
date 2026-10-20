@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3](https://github.com/minimicro34/ha-sauron/compare/v0.6.2...v0.6.3) - 2026-10-20
+
+### Added
+
+- Read-only historical daily preview (up to 36 days) and coverage audit (up to 36 months), with missing-day and ledger-conflict reporting.
+- Guarded historical Recorder import with contiguous-date, existing-row and explicit-confirmation checks, plus a positive baseline for all imported and existing cumulative statistics.
+- Read-only negative-baseline repair preview and an explicitly confirmed, idempotent Recorder cumulative adjustment.
+- Persistent repair status and verification of all historical and existing cumulative sums before marking a repair complete.
+- Regression tests for historical reconstruction, baseline correction and duplicate-write prevention.
+
+### Fixed
+
+- Avoid negative initial Energy Dashboard consumption by importing positive historical sums and rebasing existing cumulative sums in the same Recorder task.
+- Preserve a verified positive cumulative baseline across later SAURon Recorder publications.
+- Pause Recorder publication while an earlier historical import awaits repair verification.
+
+### Known limitation
+
+- First-time historical imports use a pending safety marker and require read-only Recorder verification before automatic publishing resumes. Existing negative-baseline beta imports can be repaired through the dedicated action.
+- A subsequent automatic SAUR publication after a verified baseline repair still needs field validation.
+
 ## [0.6.2](https://github.com/minimicro34/ha-sauron/compare/v0.6.1...v0.6.2) - 2026-10-17
 
 ### Added

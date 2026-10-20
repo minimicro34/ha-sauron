@@ -69,3 +69,22 @@ import_historical:
       required: true
       selector:
         boolean:
+
+
+repair_historical_baseline:
+  name: Repair historical cumulative baseline
+  description: Preview and optionally queue a guarded correction of SAURon Recorder cumulative water statistics. With confirm false, no data is changed. A later preview verifies a queued adjustment.
+  fields:
+    entry_id:
+      name: Configuration entry ID
+      description: SAURon configuration entry ID.
+      required: true
+      selector:
+        text:
+    confirm:
+      name: Confirm Recorder adjustment
+      description: Leave false for a read-only preview; set true only after reviewing the result and retaining a Home Assistant backup.
+      required: false
+      default: false
+      selector:
+        boolean:
