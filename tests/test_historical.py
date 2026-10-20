@@ -327,8 +327,9 @@ def test_backfill_plan_preserves_existing_recorder_sums():
     result = plan_historical_backfill(history, ledger, existing, "Europe/Paris")
     assert result["recorder_verified"] is True
     assert result["historical_days"] == 2
-    assert result["existing_rows_unchanged"] is True
-    assert [row["sum"] for row in result["historical_rows"]] == [-0.6, 0.0]
+    assert result["existing_states_unchanged"] is True
+    assert [row["sum"] for row in result["historical_rows"]] == [0.4, 1.0]
+    assert [row["sum"] for row in result["rebased_existing_rows"]] == [1.2, 1.5]
     assert existing == build_ledger_statistics(ledger, "Europe/Paris")
 
 
@@ -509,12 +510,14 @@ async def test_manual_import_queues_only_after_recorder_preflight(
         recorder_stats.async_add_external_statistics.assert_not_called()
         update_entry.assert_not_called()
     else:
-        # A historical negative baseline must never be queued: the Energy
-        # dashboard treats it as negative consumption at the first timestamp.
-        with pytest.raises(HomeAssistantError, match="negative Energy consumption"):
-            await _async_import_historical(hass, call)
-        recorder_stats.async_add_external_statistics.assert_not_called()
-        update_entry.assert_not_called()
+        result = await _async_import_historical(hass, call)
+        assert result["status"] == "queued"
+        queued = recorder_stats.async_add_external_statistics.call_args.args[2]
+        assert [row["sum"] for row in queued] == [0.1, 0.5, 0.7]
+        assert [row["state"] for row in queued] == [0.1, 0.4, 0.2]
+        marker = update_entry.call_args.kwargs["data"]["_historical_baseline_repair"]
+        assert marker["status"] == "pending"
+        assert marker["offset_m3"] == 0.5
 
 
 @pytest.mark.asyncio
@@ -743,7 +746,10 @@ def test_positive_baseline_repair_preserves_daily_consumption():
     ledger = {"2026-05-29": 0.2, "2026-05-30": 0.3}
     existing = build_ledger_statistics(ledger, "Europe/Paris")
     plan = plan_historical_backfill(preview, ledger, existing, "Europe/Paris")
-    historical = plan["historical_rows"]
+    historical = [
+        {**row, "sum": round(row["sum"] - plan["historical_total_m3"], 6)}
+        for row in plan["historical_rows"]
+    ]
     assert [row["sum"] for row in historical] == [-0.6, 0.0]
     repaired = plan_positive_baseline_repair(historical, existing)
     assert repaired["read_only"] is True
