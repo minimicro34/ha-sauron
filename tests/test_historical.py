@@ -1055,3 +1055,80 @@ async def test_repair_rejects_invalid_persisted_state_before_recorder(
         await _async_repair_historical_baseline(
             hass, SimpleNamespace(data={"entry_id": fake_entry.entry_id, "confirm": True})
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("recovers", [False, True])
+async def test_historical_fetch_retries_transient_failures_without_partial_preview(
+    monkeypatch, recovers
+):
+    """A failed monthly request must not return a misleading partial history."""
+    from custom_components.sauron.api.exceptions import SauronTransientError
+    from custom_components.sauron.historical import fetch_historical_preview
+
+    sleep = AsyncMock()
+    monkeypatch.setattr("custom_components.sauron.historical.asyncio.sleep", sleep)
+    client = SimpleNamespace(async_get_monthly=AsyncMock())
+    failures = [SauronTransientError("temporary")] * (2 if recovers else 3)
+    client.async_get_monthly.side_effect = (
+        [*failures, _payload(("2026-05-28", 0.4))] if recovers else failures
+    )
+    if recovers:
+        result = await fetch_historical_preview(
+            client, "SUB001", date(2026, 5, 28), date(2026, 5, 28)
+        )
+        assert result.complete
+        assert result.values == {"2026-05-28": 0.4}
+    else:
+        with pytest.raises(SauronTransientError):
+            await fetch_historical_preview(
+                client, "SUB001", date(2026, 5, 28), date(2026, 5, 28)
+            )
+    assert client.async_get_monthly.await_count == 3
+    assert [call.args for call in sleep.await_args_list] == [(1,), (2,)]
+
+
+@pytest.mark.parametrize(
+    ("case", "expected"),
+    [
+        ("missing_history", "Both historical and existing"),
+        ("missing_existing", "Both historical and existing"),
+        ("negative_state", "Invalid Recorder rows"),
+        ("nonfinite_sum", "Invalid Recorder rows"),
+        ("out_of_order", "not strictly chronological"),
+        ("bad_boundary", "Historical sum does not join"),
+        ("zero_offset", "No negative historical baseline"),
+        ("bad_delta", "cumulative deltas do not match"),
+    ],
+)
+def test_baseline_repair_rejects_corrupt_or_incomplete_recorder_rows(case, expected):
+    """Never propose a Recorder adjustment from inconsistent raw statistics."""
+    from custom_components.sauron.historical import plan_positive_baseline_repair
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    historical = build_ledger_statistics(
+        {"2026-05-27": 0.4, "2026-05-28": 0.6}, "Europe/Paris"
+    )
+    for row in historical:
+        row["sum"] -= 1.0
+    existing = build_ledger_statistics(
+        {"2026-05-29": 0.2, "2026-05-30": 0.3}, "Europe/Paris"
+    )
+    if case == "missing_history":
+        historical.clear()
+    elif case == "missing_existing":
+        existing.clear()
+    elif case == "negative_state":
+        historical[0]["state"] = -0.1
+    elif case == "nonfinite_sum":
+        existing[0]["sum"] = float("nan")
+    elif case == "out_of_order":
+        historical[0]["start"] = historical[1]["start"]
+    elif case == "bad_boundary":
+        historical[-1]["sum"] = 0.2
+    elif case == "zero_offset":
+        historical[0]["sum"] = historical[0]["state"]
+    elif case == "bad_delta":
+        historical[0]["sum"] -= 0.1
+    with pytest.raises(ValueError, match=expected):
+        plan_positive_baseline_repair(historical, existing)
