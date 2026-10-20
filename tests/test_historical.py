@@ -528,7 +528,6 @@ async def test_manual_import_queues_only_after_recorder_preflight(
     ],
 )
 async def test_import_fail_closed_paths(monkeypatch, fake_entry, case, expected):
-    from datetime import timedelta
     from unittest.mock import Mock
 
     from custom_components.sauron import _async_import_historical
