@@ -128,11 +128,6 @@ async def _async_preview_historical_coverage(hass: HomeAssistant, call: Any) -> 
 
 async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, Any]:
     """Queue a manual backfill only after verifying every existing Recorder row."""
-    from homeassistant.components.recorder.models.statistics import StatisticMeanType
-    from homeassistant.components.recorder.statistics import (
-        async_add_external_statistics,
-        statistics_during_period,
-    )
     from homeassistant.exceptions import HomeAssistantError
 
     coordinator = hass.data.get(DOMAIN, {}).get(call.data["entry_id"])
@@ -140,6 +135,11 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         raise HomeAssistantError("Unknown SAURon config entry")
     if call.data.get("confirm") is not True:
         raise HomeAssistantError("Explicit confirm: true is required")
+    from homeassistant.components.recorder.models.statistics import StatisticMeanType
+    from homeassistant.components.recorder.statistics import (
+        async_add_external_statistics,
+        statistics_during_period,
+    )
     entry = coordinator.config_entry
     ledger = entry.data.get("_dated_statistics_daily_ledger")
     if not isinstance(ledger, dict) or not ledger:
@@ -216,7 +216,7 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
             "has_sum": True,
             "mean_type": StatisticMeanType.NONE,
         }
-        async_add_external_statistics(hass, metadata, plan["historical_rows"])
+        # Preserve a local pre-import snapshot before Recorder accepts a queued write.\n        backup_key = "_historical_import_backup"\n        if backup_key in entry.data:\n            raise ValueError("Previous historical import attempt recorded; inspect before retry")\n        hass.config_entries.async_update_entry(\n            entry,\n            data={\n                **entry.data,\n                backup_key: {\n                    "start": start.isoformat(),\n                    "end": end.isoformat(),\n                    "ledger": dict(ledger),\n                    "recorder_rows": [\n                        {\n                            "start": row["start"].isoformat(),\n                            "state": row["state"],\n                            "sum": row["sum"],\n                        }\n                        for row in normalized\n                    ],\n                    "historical_total_m3": plan["historical_total_m3"],\n                    "status": "queued",\n                },\n            },\n        )\n        async_add_external_statistics(hass, metadata, plan["historical_rows"])
     except (KeyError, TypeError, ValueError, RuntimeError) as err:
         _LOGGER.warning("Historical SAUR import blocked: %s", err)
         raise HomeAssistantError(f"Historical SAUR import blocked: {err}") from err
