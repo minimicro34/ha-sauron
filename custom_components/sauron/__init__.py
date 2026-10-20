@@ -226,27 +226,6 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         backup_key = "_historical_import_backup"
         if backup_key in entry.data:
             raise ValueError("Previous historical import attempt recorded; inspect before retry")
-        hass.config_entries.async_update_entry(
-            entry,
-            data={
-                **entry.data,
-                backup_key: {
-                    "start": start.isoformat(),
-                    "end": end.isoformat(),
-                    "ledger": dict(ledger),
-                    "recorder_rows": [
-                        {
-                            "start": row["start"].isoformat(),
-                            "state": row["state"],
-                            "sum": row["sum"],
-                        }
-                        for row in normalized
-                    ],
-                    "historical_total_m3": plan["historical_total_m3"],
-                    "status": "queued",
-                },
-            },
-        )
         # Queue historical and existing rows in the same Recorder task. Existing
         # daily states are unchanged; their sums receive the same positive offset.
         # Persist a pending marker before enqueueing, so interrupted imports
