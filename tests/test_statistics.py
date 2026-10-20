@@ -144,3 +144,7 @@ def test_correction_does_not_erase_unreturned_existing_days() -> None:
         existing, [_payload(("2026-10-12", 0.2))],
         date(2026, 10, 10), date(2026, 10, 12),
     ) == existing
+
+
+def test_empty_daily_ledger_produces_no_recorder_rows():
+    assert build_ledger_statistics({}, "UTC") == []
