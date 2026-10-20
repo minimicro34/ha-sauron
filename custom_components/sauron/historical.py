@@ -26,6 +26,22 @@ class HistoricalPreview:
     conflicts_with_ledger: dict[str, tuple[float, float]]
 
     @property
+    def available_ranges(self) -> tuple[tuple[str, str], ...]:
+        """Contiguous intervals actually returned by SAUR, without inventing zeros."""
+        days = sorted(date.fromisoformat(key) for key in self.values)
+        if not days:
+            return ()
+        ranges: list[tuple[str, str]] = []
+        first = previous = days[0]
+        for day in days[1:]:
+            if day - previous != timedelta(days=1):
+                ranges.append((first.isoformat(), previous.isoformat()))
+                first = day
+            previous = day
+        ranges.append((first.isoformat(), previous.isoformat()))
+        return tuple(ranges)
+
+    @property
     def complete(self) -> bool:
         """Whether every requested day is explicitly represented."""
         return not self.missing_days and not self.conflicts_with_ledger
@@ -53,6 +69,8 @@ def preview_monthly_payloads(
         raise ValueError("Historical start must not exceed end")
     values: dict[str, float] = {}
     for payload in payloads:
+        if not isinstance(payload, dict):
+            raise ValueError("Invalid historical SAUR response")
         entries = payload.get("consumptions")
         if not isinstance(entries, list):
             raise ValueError("Invalid historical SAUR response")
