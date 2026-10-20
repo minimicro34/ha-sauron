@@ -412,9 +412,7 @@ def test_backfill_plan_rejects_existing_history_and_ledger_gaps():
     )
     ledger = {"2026-05-29": 0.2, "2026-05-31": 0.3}
     with pytest.raises(ValueError, match="missing days"):
-        plan_historical_backfill(
-            history, ledger, build_ledger_statistics(ledger, "UTC"), "UTC"
-        )
+        plan_historical_backfill(history, ledger, [], "UTC")
 
 
 def test_backfill_plan_rejects_incomplete_history():
