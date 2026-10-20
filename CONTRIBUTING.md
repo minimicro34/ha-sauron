@@ -88,7 +88,11 @@ The current coverage may be higher than the enforced minimum; contributors shoul
 
 ## Recorder historical statistics
 
-The dated-statistics importer is experimental and disabled by default. Do not enable it on a production Home Assistant instance or add it to the public options flow without dedicated tests for historical corrections, restart persistence, physical-reading rebasing, missing days and timezone boundaries. Keep existing cumulative-index entities unchanged and document any migration or cleanup plan before enabling Recorder writes.
+SAURon publishes dated daily water statistics automatically through Home Assistant Recorder. Historical backfills and cumulative baseline repairs are separate, guarded maintenance actions; they are not ordinary polling operations.
+
+Before changing the historical importer, cover partial or interrupted Recorder writes, duplicate verification and corrections, missing or malformed daily rows, timezone boundaries, restart persistence, and publication resumption. A queued write is **not** proof of completion: use the read-only verification action and retain the pending marker until Recorder rows are verified. Never repeat a queued import blindly.
+
+The positive first-import path has automated Recorder regression coverage, but still requires validation against a fresh real Recorder database. Keep statistic IDs and existing cumulative offsets compatible across upgrades.
 
 ---
 
