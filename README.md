@@ -166,6 +166,8 @@ data:
   confirm: false
 ```
 
+**Release validation (v0.6.3):** 243 automated tests passed with 93.57% coverage; Python quality, HACS and hassfest passed in [CI run #39435353943](https://github.com/minimicro34/ha-sauron/actions/runs/39435353943). Regression coverage includes interrupted imports, partial Recorder writes, repeated verification, and publication resumption. The first positive import still requires validation against a fresh real Recorder database.
+
 Historical coverage may contain unavailable SAUR dates. Missing dates are never silently invented as zero consumption. A confirmed import queues one Recorder task containing both the positive historical sums and the rebased existing sums; verify completion with the read-only `sauron.repair_historical_baseline` action before automatic publication resumes.
 
 ### `utility_meter` (optional)
