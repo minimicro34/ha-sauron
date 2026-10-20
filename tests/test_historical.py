@@ -728,3 +728,39 @@ async def test_read_only_services_fail_closed(
         )
     if case != "api_error":
         coordinator._client.async_get_monthly.assert_not_awaited()
+
+
+def test_positive_baseline_repair_preserves_daily_consumption():
+    from custom_components.sauron.historical import (
+        plan_historical_backfill,
+        plan_positive_baseline_repair,
+    )
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    preview = preview_monthly_payloads(
+        [_payload(("2026-05-27", 0.4), ("2026-05-28", 0.6))],
+        date(2026, 5, 27), date(2026, 5, 28),
+    )
+    ledger = {"2026-05-29": 0.2, "2026-05-30": 0.3}
+    existing = build_ledger_statistics(ledger, "Europe/Paris")
+    plan = plan_historical_backfill(preview, ledger, existing, "Europe/Paris")
+    historical = plan["historical_rows"]
+    assert [row["sum"] for row in historical] == [-0.6, 0.0]
+    repaired = plan_positive_baseline_repair(historical, existing)
+    assert repaired["read_only"] is True
+    assert repaired["recorder_write_completed"] is False
+    assert repaired["offset_m3"] == 1.0
+    assert [row["sum"] for row in repaired["historical_rows"]] == [0.4, 1.0]
+    assert [row["sum"] for row in repaired["existing_rows"]] == [1.2, 1.5]
+    assert [row["state"] for row in repaired["existing_rows"]] == [0.2, 0.3]
+    assert [row["sum"] for row in existing] == [0.2, 0.5]
+
+
+def test_positive_baseline_repair_rejects_inconsistent_series():
+    from custom_components.sauron.historical import plan_positive_baseline_repair
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    historical = build_ledger_statistics({"2026-05-28": 0.4}, "UTC")
+    existing = build_ledger_statistics({"2026-05-29": 0.2}, "UTC")
+    with pytest.raises(ValueError, match="No negative historical baseline"):
+        plan_positive_baseline_repair(historical, existing)
