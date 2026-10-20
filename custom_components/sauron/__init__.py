@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import asdict
+from itertools import pairwise
 from datetime import UTC, date, datetime, timedelta
 from datetime import time as datetime_time
 from typing import TYPE_CHECKING, Any
@@ -278,10 +279,11 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
     official Recorder adjustment, marks it pending, and requires a later
     read-only call to verify persistence. Never adjusts twice.
     """
-    from homeassistant.exceptions import HomeAssistantError
+    from zoneinfo import ZoneInfo
+
     from homeassistant.components import recorder
     from homeassistant.components.recorder.statistics import statistics_during_period
-    from zoneinfo import ZoneInfo
+    from homeassistant.exceptions import HomeAssistantError
 
     coordinator = hass.data.get(DOMAIN, {}).get(call.data["entry_id"])
     if not isinstance(coordinator, SauronCoordinator):
@@ -365,7 +367,7 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
             raise ValueError("Recorder historical daily consumption total mismatch")
         if any(
             right["start"] <= left["start"]
-            for left, right in zip(rows, rows[1:])
+            for left, right in pairwise(rows)
         ):
             raise ValueError("Recorder timestamps not increasing")
 
