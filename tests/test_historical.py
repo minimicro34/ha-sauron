@@ -831,6 +831,19 @@ async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confir
         assert update_entry.call_args.kwargs["data"][
             "_historical_baseline_repair"
         ]["status"] == "pending"
+        # Simulate Recorder completing its queued adjustment and persisting the
+        # pending marker, then verify without ever queueing a second write.
+        fake_entry.data.update(update_entry.call_args.kwargs["data"])
+        for row in rows:
+            row["sum"] += 1.0
+        result = await _async_repair_historical_baseline(
+            hass, SimpleNamespace(data={"entry_id": fake_entry.entry_id})
+        )
+        assert result["status"] == "verified"
+        assert update_entry.call_args.kwargs["data"][
+            "_historical_baseline_repair"
+        ]["status"] == "verified"
+        adjust.assert_called_once()
     else:
         assert result["status"] == "ready"
         adjust.assert_not_called()
