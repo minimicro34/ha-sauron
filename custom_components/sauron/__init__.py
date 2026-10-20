@@ -381,7 +381,19 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
             if all(
                 abs(float(actual["sum"]) - wanted) <= 0.000001
                 for actual, wanted in zip(existing, rebased_expected, strict=True)
-            ) and abs(float(history[0]["sum"]) - float(history[0]["state"])) <= 0.000001:
+            ) and all(
+                abs(
+                    float(row["sum"]) - (
+                        round(
+                            -original_total
+                            + sum(float(item["state"]) for item in history[:index + 1])
+                            + offset,
+                            6,
+                        )
+                    )
+                ) <= 0.000001
+                for index, row in enumerate(history)
+            ):
                 if marker["status"] != "verified":
                     hass.config_entries.async_update_entry(
                         entry, data={
