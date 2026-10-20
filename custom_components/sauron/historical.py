@@ -6,6 +6,9 @@ Historical sums must be reconciled before any backfill is enabled.
 
 from __future__ import annotations
 
+import asyncio
+import logging
+
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from itertools import pairwise
@@ -13,7 +16,10 @@ from math import isclose, isfinite
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
+from .api.exceptions import SauronTransientError
 from .statistics import build_ledger_statistics
+
+_LOGGER = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .api import SauronApiClient
@@ -125,10 +131,21 @@ async def fetch_historical_preview(
     """
     if start > end:
         raise ValueError("Historical start must not exceed end")
-    payloads = [
-        await client.async_get_monthly(subscription_id, year, month)
-        for year, month in _months(start, end)
-    ]
+    payloads = []
+    for year, month in _months(start, end):
+        for attempt in range(3):
+            try:
+                payload = await client.async_get_monthly(subscription_id, year, month)
+                payloads.append(payload)
+                break
+            except SauronTransientError:
+                if attempt == 2:
+                    _LOGGER.warning(
+                        "SAUR historical fetch failed after 3 attempts for %04d-%02d",
+                        year, month,
+                    )
+                    raise
+                await asyncio.sleep(2 ** attempt)
     return preview_monthly_payloads(payloads, start, end, existing)
 
 
