@@ -2,7 +2,6 @@
   "domain": "sauron",
   "name": "SAURon",
   "after_dependencies": ["recorder"],
-  "categories": ["water.meters_leak_detection"],
   "codeowners": [
     "@netnic0",
     "@minimicro34"
