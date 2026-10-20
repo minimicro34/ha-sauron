@@ -9,9 +9,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 from math import isfinite
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .api import SauronApiClient
+if TYPE_CHECKING:
+    from .api import SauronApiClient
 
 
 @dataclass(frozen=True)
