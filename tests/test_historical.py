@@ -1,9 +1,14 @@
 """Read-only historical backfill preparation tests."""
 
 from datetime import date
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from custom_components.sauron import _async_preview_historical
+from custom_components.sauron.const import DOMAIN
+from custom_components.sauron.coordinator import SauronCoordinator
 from custom_components.sauron.historical import preview_monthly_payloads
 
 
@@ -111,4 +116,97 @@ def test_non_mapping_payload_is_rejected():
     with pytest.raises(ValueError, match="Invalid historical SAUR response"):
         preview_monthly_payloads(
             [None], date(2023, 10, 20), date(2023, 10, 20)
+        )
+
+
+@pytest.mark.asyncio
+async def test_service_preview_read_only(monkeypatch, fake_entry):
+    """Preview must report coverage and leave existing config data untouched."""
+    import sys
+    import types
+
+    errors = types.ModuleType("homeassistant.exceptions")
+    class HomeAssistantError(Exception):
+        pass
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+
+    fake_entry.data["subscription_id"] = "SUB001"
+    client = AsyncMock()
+    client.async_get_monthly.return_value = _payload(
+        ("2023-10-20", 0.1), ("2023-10-21", 0)
+    )
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    coordinator._client = client
+    hass = SimpleNamespace(data={DOMAIN: {fake_entry.entry_id: coordinator}})
+    before = dict(fake_entry.data)
+    result = await _async_preview_historical(
+        hass,
+        SimpleNamespace(data={
+            "entry_id": fake_entry.entry_id,
+            "start": "2023-10-20",
+            "end": "2023-10-22",
+        }),
+    )
+    assert result["read_only"] is True
+    assert result["returned_days"] == 2
+    assert result["missing_days"] == ["2023-10-22"]
+    assert result["available_ranges"] == [["2023-10-20", "2023-10-21"]]
+    assert fake_entry.data == before
+    client.async_get_monthly.assert_awaited_once_with("SUB001", 2023, 10)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ("bad-date", "2023-10-21"),
+        ("2023-10-22", "2023-10-20"),
+        ("2023-10-01", "2023-11-07"),
+    ],
+)
+async def test_service_rejects_invalid_dates(monkeypatch, fake_entry, start, end):
+    import sys
+    import types
+
+    errors = types.ModuleType("homeassistant.exceptions")
+    class HomeAssistantError(Exception):
+        pass
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    coordinator._client = AsyncMock()
+    hass = SimpleNamespace(data={DOMAIN: {fake_entry.entry_id: coordinator}})
+    with pytest.raises(HomeAssistantError):
+        await _async_preview_historical(
+            hass,
+            SimpleNamespace(data={
+                "entry_id": fake_entry.entry_id,
+                "start": start,
+                "end": end,
+            }),
+        )
+    coordinator._client.async_get_monthly.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_service_rejects_unknown_entry(monkeypatch):
+    import sys
+    import types
+
+    errors = types.ModuleType("homeassistant.exceptions")
+    class HomeAssistantError(Exception):
+        pass
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    with pytest.raises(HomeAssistantError, match="Unknown"):
+        await _async_preview_historical(
+            SimpleNamespace(data={DOMAIN: {}}),
+            SimpleNamespace(data={
+                "entry_id": "unknown",
+                "start": "2023-10-20",
+                "end": "2023-10-21",
+            }),
         )
