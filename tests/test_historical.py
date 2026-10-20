@@ -2,7 +2,7 @@
 
 import sys
 import types
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -840,6 +840,10 @@ async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confir
         # Simulate Recorder completing its queued adjustment and persisting the
         # pending marker, then verify without ever queueing a second write.
         fake_entry.data.update(update_entry.call_args.kwargs["data"])
+        # A pending adjustment is not permission to enqueue it again.
+        with pytest.raises(HomeAssistantError, match="never retry"):
+            await _async_repair_historical_baseline(hass, call)
+        adjust.assert_called_once()
         for row in rows:
             row["sum"] += 1.0
         result = await _async_repair_historical_baseline(
@@ -857,9 +861,27 @@ async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confir
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("complete", [False, True])
+@pytest.mark.parametrize(
+    "case",
+    [
+        "incomplete",
+        "complete",
+        "already_verified",
+        "wrong_offset",
+        "missing_marker",
+        "historical_corruption",
+        "wrong_existing_state",
+        "missing_history",
+        "missing_existing",
+        "first_history_timestamp",
+        "second_history_timestamp",
+        "existing_timestamp",
+        "wrong_history_total",
+        "partial_existing_sum",
+    ],
+)
 async def test_positive_import_verification_waits_for_recorder(
-    monkeypatch, fake_entry, complete
+    monkeypatch, fake_entry, case
 ):
     from unittest.mock import Mock
 
@@ -880,8 +902,26 @@ async def test_positive_import_verification_waits_for_recorder(
     existing = build_ledger_statistics(
         {"2026-05-29": 0.2, "2026-05-30": 0.3}, "Europe/Paris"
     )
-    if complete:
+    if case != "incomplete":
         existing = [{**row, "sum": row["sum"] + 1.0} for row in existing]
+    if case == "wrong_existing_state":
+        existing[0]["state"] += 0.1
+    if case == "historical_corruption":
+        history[0]["sum"] += 0.1
+    if case == "missing_history":
+        history.pop()
+    if case == "missing_existing":
+        existing.pop()
+    if case == "first_history_timestamp":
+        history[0]["start"] -= timedelta(hours=1)
+    if case == "second_history_timestamp":
+        history[1]["start"] -= timedelta(hours=1)
+    if case == "existing_timestamp":
+        existing[0]["start"] += timedelta(hours=1)
+    if case == "wrong_history_total":
+        history[0]["state"] += 0.1
+    if case == "partial_existing_sum":
+        existing[0]["sum"] -= 1.0
     rows = [
         {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
         for row in [*history, *existing]
@@ -896,6 +936,12 @@ async def test_positive_import_verification_waits_for_recorder(
     fake_entry.data["_historical_baseline_repair"] = {
         "status": "pending", "offset_m3": 1.0, "source": "positive_import"
     }
+    if case == "already_verified":
+        fake_entry.data["_historical_baseline_repair"]["status"] = "verified"
+    if case == "wrong_offset":
+        fake_entry.data["_historical_baseline_repair"]["offset_m3"] = 0.9
+    if case == "missing_marker":
+        del fake_entry.data["_historical_baseline_repair"]
     coordinator = object.__new__(SauronCoordinator)
     coordinator.config_entry = fake_entry
 
@@ -921,15 +967,168 @@ async def test_positive_import_verification_waits_for_recorder(
         config_entries=SimpleNamespace(async_update_entry=update_entry),
     )
     call = SimpleNamespace(data={"entry_id": fake_entry.entry_id, "confirm": False})
-    if complete:
+    if case in ("complete", "already_verified"):
         result = await _async_repair_historical_baseline(hass, call)
         assert result["status"] == "verified"
         assert result["offset_m3"] == 1.0
-        assert update_entry.call_args.kwargs["data"][
-            "_historical_baseline_repair"
-        ]["status"] == "verified"
+        if case == "complete":
+            assert update_entry.call_args.kwargs["data"][
+                "_historical_baseline_repair"
+            ]["status"] == "verified"
+        else:
+            update_entry.assert_not_called()
     else:
-        with pytest.raises(HomeAssistantError, match="existing sums not yet verified"):
+        errors_by_case = {
+            "incomplete": "existing sums not yet verified",
+            "wrong_offset": "offset mismatch",
+            "missing_marker": "Missing positive import safety marker",
+            "historical_corruption": "historical sums not yet verified",
+            "wrong_existing_state": "existing daily consumption changed",
+            "missing_history": "historical row count mismatch",
+            "missing_existing": "existing row count mismatch",
+            "first_history_timestamp": "historical first timestamp mismatch",
+            "second_history_timestamp": "historical timestamps are not consecutive",
+            "existing_timestamp": "existing timestamps mismatch",
+            "wrong_history_total": "historical daily consumption total mismatch",
+            "partial_existing_sum": "existing sums not yet verified",
+        }
+        with pytest.raises(HomeAssistantError, match=errors_by_case[case]):
             await _async_repair_historical_baseline(hass, call)
         update_entry.assert_not_called()
     adjust.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("case", "message"),
+    [
+        ("unknown_entry", "Unknown SAURon"),
+        ("missing_backup", "No original historical import snapshot"),
+        ("invalid_backup", "No original historical import snapshot"),
+        ("invalid_backup_status", "No original historical import snapshot"),
+        ("missing_ledger", "Missing original SAURon ledger"),
+        ("invalid_marker", "Invalid repair marker"),
+        ("invalid_marker_status", "Invalid repair marker"),
+    ],
+)
+async def test_repair_rejects_invalid_persisted_state_before_recorder(
+    monkeypatch, fake_entry, case, message
+):
+    from unittest.mock import Mock
+
+    from custom_components.sauron import _async_repair_historical_baseline
+
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+    recorder_module = types.ModuleType("homeassistant.components.recorder")
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder", recorder_module)
+    stats_module = types.ModuleType("homeassistant.components.recorder.statistics")
+    stats_module.statistics_during_period = Mock()
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder.statistics", stats_module)
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    fake_entry.data["_historical_import_backup"] = {
+        "status": "queued", "start": "2026-05-27", "end": "2026-05-28"
+    }
+    fake_entry.data["_dated_statistics_daily_ledger"] = {"2026-05-29": 0.2}
+    hass = SimpleNamespace(data={DOMAIN: {fake_entry.entry_id: coordinator}})
+    if case == "unknown_entry":
+        hass.data[DOMAIN] = {}
+    elif case == "missing_backup":
+        del fake_entry.data["_historical_import_backup"]
+    elif case == "invalid_backup":
+        fake_entry.data["_historical_import_backup"] = "corrupt"
+    elif case == "invalid_backup_status":
+        fake_entry.data["_historical_import_backup"]["status"] = "failed"
+    elif case == "missing_ledger":
+        del fake_entry.data["_dated_statistics_daily_ledger"]
+    elif case == "invalid_marker":
+        fake_entry.data["_historical_baseline_repair"] = "corrupt"
+    elif case == "invalid_marker_status":
+        fake_entry.data["_historical_baseline_repair"] = {"status": "failed"}
+    with pytest.raises(HomeAssistantError, match=message):
+        await _async_repair_historical_baseline(
+            hass, SimpleNamespace(data={"entry_id": fake_entry.entry_id, "confirm": True})
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("recovers", [False, True])
+async def test_historical_fetch_retries_transient_failures_without_partial_preview(
+    monkeypatch, recovers
+):
+    """A failed monthly request must not return a misleading partial history."""
+    from custom_components.sauron.api.exceptions import SauronTransientError
+    from custom_components.sauron.historical import fetch_historical_preview
+
+    sleep = AsyncMock()
+    monkeypatch.setattr("custom_components.sauron.historical.asyncio.sleep", sleep)
+    client = SimpleNamespace(async_get_monthly=AsyncMock())
+    failures = [SauronTransientError("temporary")] * (2 if recovers else 3)
+    client.async_get_monthly.side_effect = (
+        [*failures, _payload(("2026-05-28", 0.4))] if recovers else failures
+    )
+    if recovers:
+        result = await fetch_historical_preview(
+            client, "SUB001", date(2026, 5, 28), date(2026, 5, 28)
+        )
+        assert result.complete
+        assert result.values == {"2026-05-28": 0.4}
+    else:
+        with pytest.raises(SauronTransientError):
+            await fetch_historical_preview(
+                client, "SUB001", date(2026, 5, 28), date(2026, 5, 28)
+            )
+    assert client.async_get_monthly.await_count == 3
+    assert [call.args for call in sleep.await_args_list] == [(1,), (2,)]
+
+
+@pytest.mark.parametrize(
+    ("case", "expected"),
+    [
+        ("missing_history", "Both historical and existing"),
+        ("missing_existing", "Both historical and existing"),
+        ("negative_state", "Invalid Recorder rows"),
+        ("nonfinite_sum", "Invalid Recorder rows"),
+        ("out_of_order", "not strictly chronological"),
+        ("bad_boundary", "Historical sum does not join"),
+        ("zero_offset", "No negative historical baseline"),
+        ("bad_delta", "cumulative deltas do not match"),
+    ],
+)
+def test_baseline_repair_rejects_corrupt_or_incomplete_recorder_rows(case, expected):
+    """Never propose a Recorder adjustment from inconsistent raw statistics."""
+    from custom_components.sauron.historical import plan_positive_baseline_repair
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    historical = build_ledger_statistics(
+        {"2026-05-27": 0.4, "2026-05-28": 0.6}, "Europe/Paris"
+    )
+    for row in historical:
+        row["sum"] -= 1.0
+    existing = build_ledger_statistics(
+        {"2026-05-29": 0.2, "2026-05-30": 0.3}, "Europe/Paris"
+    )
+    if case == "missing_history":
+        historical.clear()
+    elif case == "missing_existing":
+        existing.clear()
+    elif case == "negative_state":
+        historical[0]["state"] = -0.1
+    elif case == "nonfinite_sum":
+        existing[0]["sum"] = float("nan")
+    elif case == "out_of_order":
+        historical[0]["start"] = historical[1]["start"]
+    elif case == "bad_boundary":
+        historical[-1]["sum"] = 0.2
+    elif case == "zero_offset":
+        historical[0]["sum"] = historical[0]["state"]
+    elif case == "bad_delta":
+        historical[0]["sum"] -= 0.1
+    with pytest.raises(ValueError, match=expected):
+        plan_positive_baseline_repair(historical, existing)
