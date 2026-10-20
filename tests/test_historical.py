@@ -311,3 +311,62 @@ async def test_coverage_action_rejects_invalid_range(monkeypatch, fake_entry, st
             }),
         )
     coordinator._client.async_get_monthly.assert_not_awaited()
+
+
+def test_backfill_plan_preserves_existing_recorder_sums():
+    from custom_components.sauron.historical import plan_historical_backfill
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    history = preview_monthly_payloads(
+        [_payload(("2026-05-27", 0.4), ("2026-05-28", 0.6))],
+        date(2026, 5, 27),
+        date(2026, 5, 28),
+    )
+    ledger = {"2026-05-29": 0.2, "2026-05-30": 0.3}
+    existing = build_ledger_statistics(ledger, "Europe/Paris")
+    result = plan_historical_backfill(history, ledger, existing, "Europe/Paris")
+    assert result["recorder_verified"] is True
+    assert result["historical_days"] == 2
+    assert result["existing_rows_unchanged"] is True
+    assert [row["sum"] for row in result["historical_rows"]] == [-0.6, 0.0]
+    assert existing == build_ledger_statistics(ledger, "Europe/Paris")
+
+
+@pytest.mark.parametrize("tamper", ["missing", "sum", "state", "timestamp"])
+def test_backfill_plan_rejects_recorder_discrepancies(tamper):
+    from datetime import timedelta
+
+    from custom_components.sauron.historical import plan_historical_backfill
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    history = preview_monthly_payloads(
+        [_payload(("2026-05-28", 0.4))],
+        date(2026, 5, 28),
+        date(2026, 5, 28),
+    )
+    ledger = {"2026-05-29": 0.2}
+    rows = build_ledger_statistics(ledger, "Europe/Paris")
+    if tamper == "missing":
+        rows = []
+    elif tamper == "timestamp":
+        rows[0]["start"] += timedelta(hours=1)
+    else:
+        rows[0][tamper] += 0.1
+    with pytest.raises(ValueError, match="Recorder"):
+        plan_historical_backfill(history, ledger, rows, "Europe/Paris")
+
+
+def test_backfill_plan_rejects_missing_historical_boundary():
+    from custom_components.sauron.historical import plan_historical_backfill
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    history = preview_monthly_payloads(
+        [_payload(("2026-05-27", 0.4))],
+        date(2026, 5, 27),
+        date(2026, 5, 27),
+    )
+    ledger = {"2026-05-29": 0.2}
+    with pytest.raises(ValueError, match="exactly one day"):
+        plan_historical_backfill(
+            history, ledger, build_ledger_statistics(ledger, "UTC"), "UTC"
+        )
