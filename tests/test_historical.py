@@ -1,8 +1,8 @@
 """Read-only historical backfill preparation tests."""
 
-from datetime import date
 import sys
 import types
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
