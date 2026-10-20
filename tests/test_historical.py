@@ -763,3 +763,74 @@ def test_positive_baseline_repair_rejects_inconsistent_series():
     existing = build_ledger_statistics({"2026-05-29": 0.2}, "UTC")
     with pytest.raises(ValueError, match="Historical sum does not join"):
         plan_positive_baseline_repair(historical, existing)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("confirm", [False, True])
+async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confirm):
+    from unittest.mock import Mock
+    from custom_components.sauron import _async_repair_historical_baseline
+    from custom_components.sauron.statistics import build_ledger_statistics
+
+    errors = types.ModuleType("homeassistant.exceptions")
+
+    class HomeAssistantError(Exception):
+        pass
+
+    errors.HomeAssistantError = HomeAssistantError
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
+
+    historical = build_ledger_statistics({
+        "2026-05-27": 0.4, "2026-05-28": 0.6
+    }, "Europe/Paris")
+    for row in historical:
+        row["sum"] -= 1.0
+    ledger = {"2026-05-29": 0.2, "2026-05-30": 0.3}
+    existing = build_ledger_statistics(ledger, "Europe/Paris")
+    rows = [
+        {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
+        for row in [*historical, *existing]
+    ]
+    fake_entry.data["_dated_statistics_daily_ledger"] = ledger
+    fake_entry.data["_historical_import_backup"] = {
+        "start": "2026-05-27", "end": "2026-05-28",
+        "historical_total_m3": 1.0, "status": "queued",
+    }
+    coordinator = object.__new__(SauronCoordinator)
+    coordinator.config_entry = fake_entry
+    async def executor_job(func):
+        return func()
+    adjust = Mock()
+    recorder_module = types.ModuleType("homeassistant.components.recorder")
+    recorder_module.get_instance = lambda _hass: SimpleNamespace(
+        async_add_executor_job=executor_job,
+        async_adjust_statistics=adjust,
+    )
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder", recorder_module)
+    stats = types.ModuleType("homeassistant.components.recorder.statistics")
+    stats.statistics_during_period = Mock(return_value={
+        f"sauron:daily_water_{fake_entry.entry_id.lower()}": rows
+    })
+    monkeypatch.setitem(sys.modules, "homeassistant.components.recorder.statistics", stats)
+    update_entry = Mock()
+    hass = SimpleNamespace(
+        data={DOMAIN: {fake_entry.entry_id: coordinator}},
+        config=SimpleNamespace(time_zone="Europe/Paris"),
+        config_entries=SimpleNamespace(async_update_entry=update_entry),
+    )
+    call = SimpleNamespace(data={"entry_id": fake_entry.entry_id, "confirm": confirm})
+    result = await _async_repair_historical_baseline(hass, call)
+    assert result["offset_m3"] == 1.0
+    assert result["historical_days"] == 2
+    assert result["existing_days"] == 2
+    if confirm:
+        assert result["status"] == "queued"
+        adjust.assert_called_once()
+        assert adjust.call_args.args[2:] == (1.0, "m³")
+        assert update_entry.call_args.kwargs["data"][
+            "_historical_baseline_repair"
+        ]["status"] == "pending"
+    else:
+        assert result["status"] == "ready"
+        adjust.assert_not_called()
+        update_entry.assert_not_called()
