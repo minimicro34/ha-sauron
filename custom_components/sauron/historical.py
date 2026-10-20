@@ -261,3 +261,71 @@ def plan_historical_backfill(
         "existing_rows_unchanged": True,
         "recorder_verified": True,
     }
+
+
+def plan_positive_baseline_repair(
+    historical_rows: list[dict[str, Any]],
+    existing_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build a read-only rebase proposal; do not mutate or write Recorder.
+
+    Recorder's Energy dashboard interprets the initial negative cumulative sum
+    as negative consumption. Shifting *only* historical rows would create a
+    discontinuity at the existing-ledger boundary, so both segments must be
+    shifted by the same constant. Applying this proposal requires a separately
+    reviewed Recorder migration with an atomic backup/rollback strategy.
+    """
+    if not historical_rows or not existing_rows:
+        raise ValueError("Both historical and existing Recorder rows are required")
+    combined = [*historical_rows, *existing_rows]
+    if any(
+        not isinstance(row.get("start"), datetime)
+        or not isinstance(row.get("state"), (int, float))
+        or not isinstance(row.get("sum"), (int, float))
+        or not isfinite(float(row["state"]))
+        or not isfinite(float(row["sum"]))
+        or float(row["state"]) < 0
+        for row in combined
+    ):
+        raise ValueError("Invalid Recorder rows for baseline repair")
+    if any(left["start"] >= right["start"] for left, right in pairwise(combined)):
+        raise ValueError("Recorder rows are not strictly chronological")
+    if not isclose(
+        float(historical_rows[-1]["sum"]), 0.0, rel_tol=0, abs_tol=0.000001
+    ):
+        raise ValueError("Historical sum does not join the original zero baseline")
+
+    # The first imported row already includes the first day's consumption.
+    offset = round(
+        float(historical_rows[0]["state"]) - float(historical_rows[0]["sum"]), 6
+    )
+    if offset <= 0:
+        raise ValueError("No negative historical baseline requiring repair")
+    rebased = [
+        {**row, "sum": round(float(row["sum"]) + offset, 6)}
+        for row in combined
+    ]
+    if any(
+        not isclose(
+            float(right["sum"]) - float(left["sum"]),
+            float(right["state"]),
+            rel_tol=0,
+            abs_tol=0.000002,
+        )
+        for left, right in pairwise(rebased)
+    ):
+        raise ValueError("Recorder cumulative deltas do not match daily states")
+    if not isclose(
+        float(rebased[0]["sum"]), float(rebased[0]["state"]),
+        rel_tol=0, abs_tol=0.000001,
+    ):
+        raise ValueError("Rebased first sum does not match first-day consumption")
+    return {
+        "read_only": True,
+        "recorder_write_completed": False,
+        "offset_m3": offset,
+        "historical_rows": rebased[:len(historical_rows)],
+        "existing_rows": rebased[len(historical_rows):],
+        "existing_states_unchanged": True,
+        "existing_sums_must_change": True,
+    }
