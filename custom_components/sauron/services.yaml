@@ -1,0 +1,25 @@
+preview_historical:
+  name: Preview historical consumption
+  description: Read historical SAUR daily data without writing to Recorder or the daily ledger. Maximum interval is 36 days.
+  fields:
+    entry_id:
+      name: Configuration entry ID
+      description: SAURon configuration entry ID.
+      required: true
+      example: 01M19Z0FC5TJ1R6Y1AB9ZV2FVA
+      selector:
+        text:
+    start:
+      name: Start date
+      description: First day to inspect (YYYY-MM-DD).
+      required: true
+      example: "2023-10-16"
+      selector:
+        date:
+    end:
+      name: End date
+      description: Last day to inspect (YYYY-MM-DD).
+      required: true
+      example: "2023-10-31"
+      selector:
+        date:
