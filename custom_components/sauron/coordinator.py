@@ -318,6 +318,12 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         # A legacy anchor has no persisted day-by-day ledger. Do not silently
         # restart cumulative statistics when upgrading from an earlier preview.
         ledger_key = "_dated_statistics_daily_ledger"
+        repair = self.config_entry.data.get("_historical_baseline_repair")
+        if self.config_entry.data.get("_historical_import_backup") and (
+            not isinstance(repair, dict) or repair.get("status") != "verified"
+        ):
+            _LOGGER.debug("SAURon Recorder publication paused until historical repair is verified")
+            return
         existing = self.config_entry.data.get(ledger_key)
         if existing is None and "_dated_statistics_anchor" in self.config_entry.data:
             _LOGGER.warning(
