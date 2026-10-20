@@ -403,7 +403,6 @@ async def test_import_rejects_missing_confirmation(monkeypatch, fake_entry):
 
 def test_backfill_plan_rejects_existing_history_and_ledger_gaps():
     from custom_components.sauron.historical import plan_historical_backfill
-    from custom_components.sauron.statistics import build_ledger_statistics
 
     history = preview_monthly_payloads(
         [_payload(("2026-05-28", 0.4))],
