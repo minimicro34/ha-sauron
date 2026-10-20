@@ -81,3 +81,34 @@ def test_invalid_payload_is_rejected():
         preview_monthly_payloads(
             [{}], date(2023, 10, 20), date(2023, 10, 20)
         )
+
+
+def test_available_ranges_keep_missing_days_as_gaps():
+    result = preview_monthly_payloads(
+        [_payload(
+            ("2023-10-20", 0.1),
+            ("2023-10-21", 0),
+            ("2023-10-23", 0.2),
+        )],
+        date(2023, 10, 20),
+        date(2023, 10, 24),
+    )
+    assert result.available_ranges == (
+        ("2023-10-20", "2023-10-21"),
+        ("2023-10-23", "2023-10-23"),
+    )
+    assert result.missing_days == ("2023-10-22", "2023-10-24")
+
+
+def test_available_ranges_empty_when_no_readings():
+    result = preview_monthly_payloads(
+        [_payload()], date(2023, 10, 20), date(2023, 10, 21)
+    )
+    assert result.available_ranges == ()
+
+
+def test_non_mapping_payload_is_rejected():
+    with pytest.raises(ValueError, match="Invalid historical SAUR response"):
+        preview_monthly_payloads(
+            [None], date(2023, 10, 20), date(2023, 10, 20)
+        )
