@@ -478,12 +478,12 @@ async def test_manual_import_queues_only_after_recorder_preflight(
     async def executor_job(func):
         return func()
 
-    import homeassistant.components.recorder as recorder_module
-    monkeypatch.setattr(
-        recorder_module,
-        "get_instance",
-        lambda _hass: SimpleNamespace(async_add_executor_job=executor_job),
-        raising=False,
+    recorder_module = types.ModuleType("homeassistant.components.recorder")
+    recorder_module.get_instance = lambda _hass: SimpleNamespace(
+        async_add_executor_job=executor_job
+    )
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.components.recorder", recorder_module
     )
     recorder_stats.statistics_during_period.return_value = {
         f"sauron:daily_water_{fake_entry.entry_id.lower()}": recorded
@@ -578,12 +578,12 @@ async def test_import_fail_closed_paths(monkeypatch, fake_entry, case, expected)
         recorded.insert(
             0, {**recorded[0], "start": recorded[0]["start"] - 86400}
         )
-    import homeassistant.components.recorder as recorder_module
-    monkeypatch.setattr(
-        recorder_module,
-        "get_instance",
-        lambda _hass: SimpleNamespace(async_add_executor_job=executor_job),
-        raising=False,
+    recorder_module = types.ModuleType("homeassistant.components.recorder")
+    recorder_module.get_instance = lambda _hass: SimpleNamespace(
+        async_add_executor_job=executor_job
+    )
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.components.recorder", recorder_module
     )
     stats.statistics_during_period.return_value = {statistic_id: recorded}
     update_entry = Mock()
