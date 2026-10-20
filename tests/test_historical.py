@@ -463,7 +463,9 @@ async def test_manual_import_queues_only_after_recorder_preflight(
     fake_entry.data["subscription_id"] = "SUB001"
     fake_entry.data["_dated_statistics_daily_ledger"] = {"2026-05-29": 0.2}
     client = AsyncMock()
-    client.async_get_monthly.return_value = _payload(("2026-05-28", 0.4))
+    client.async_get_monthly.return_value = _payload(
+        ("2026-05-27", 0.1), ("2026-05-28", 0.4)
+    )
     coordinator = object.__new__(SauronCoordinator)
     coordinator.config_entry = fake_entry
     coordinator._client = client
@@ -497,7 +499,7 @@ async def test_manual_import_queues_only_after_recorder_preflight(
     )
     call = SimpleNamespace(data={
         "entry_id": fake_entry.entry_id,
-        "start": "2026-05-28",
+        "start": "2026-05-27",
         "end": "2026-05-28",
         "confirm": True,
     })
