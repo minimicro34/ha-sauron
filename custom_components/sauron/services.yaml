@@ -43,3 +43,29 @@ preview_historical_coverage:
       required: true
       selector:
         date:
+
+import_historical:
+  name: Import historical consumption
+  description: Manually queue a guarded historical Recorder backfill. Existing Recorder rows are verified before writing. Requires explicit confirmation.
+  fields:
+    entry_id:
+      name: Configuration entry ID
+      required: true
+      selector:
+        text:
+    start:
+      name: Start date
+      required: true
+      selector:
+        date:
+    end:
+      name: End date
+      required: true
+      selector:
+        date:
+    confirm:
+      name: Confirm historical import
+      description: Must be true to queue a Recorder write.
+      required: true
+      selector:
+        boolean:
