@@ -769,6 +769,7 @@ def test_positive_baseline_repair_rejects_inconsistent_series():
 @pytest.mark.parametrize("confirm", [False, True])
 async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confirm):
     from unittest.mock import Mock
+
     from custom_components.sauron import _async_repair_historical_baseline
     from custom_components.sauron.statistics import build_ledger_statistics
 
