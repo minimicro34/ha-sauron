@@ -126,3 +126,56 @@ async def fetch_historical_preview(
         for year, month in _months(start, end)
     ]
     return preview_monthly_payloads(payloads, start, end, existing)
+
+
+def summarize_historical_coverage(
+    preview: HistoricalPreview,
+    existing: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    """Summarize a multi-month read-only preview and actual ledger overlap."""
+    ledger = existing or {}
+    months: list[dict[str, Any]] = []
+    for year, month in _months(preview.start, preview.end):
+        first = max(preview.start, date(year, month, 1))
+        next_month = date(year + (month == 12), month % 12 + 1, 1)
+        last = min(preview.end, next_month - timedelta(days=1))
+        days = [
+            (first + timedelta(days=offset)).isoformat()
+            for offset in range((last - first).days + 1)
+        ]
+        returned = sum(day in preview.values for day in days)
+        months.append({
+            "month": f"{year:04d}-{month:02d}",
+            "expected_days": len(days),
+            "returned_days": returned,
+            "missing_days": len(days) - returned,
+            "ledger_overlap_days": sum(day in ledger and day in preview.values for day in days),
+            "ledger_conflicts": sum(day in preview.conflicts_with_ledger for day in days),
+        })
+    overlaps = sorted(set(preview.values).intersection(ledger))
+    return {
+        "start": preview.start.isoformat(),
+        "end": preview.end.isoformat(),
+        "expected_days": (preview.end - preview.start).days + 1,
+        "returned_days": len(preview.values),
+        "missing_days_count": len(preview.missing_days),
+        "missing_days": list(preview.missing_days),
+        "available_ranges": [list(item) for item in preview.available_ranges],
+        "months": months,
+        "ledger_available": bool(ledger),
+        "ledger_days": len(ledger),
+        "ledger_first_day": min(ledger) if ledger else None,
+        "ledger_last_day": max(ledger) if ledger else None,
+        "ledger_overlap_days": len(overlaps),
+        "ledger_conflicts": {
+            key: {"existing": old, "received": new}
+            for key, (old, new) in preview.conflicts_with_ledger.items()
+        },
+        "recorder_verified": False,
+        "recorder_note": (
+            "Recorder long-term statistics are NOT compared by this action. "
+            "Ledger overlap alone cannot establish Recorder consistency."
+        ),
+        "complete": preview.complete,
+        "read_only": True,
+    }
