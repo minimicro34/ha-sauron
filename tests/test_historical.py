@@ -840,6 +840,10 @@ async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confir
         # Simulate Recorder completing its queued adjustment and persisting the
         # pending marker, then verify without ever queueing a second write.
         fake_entry.data.update(update_entry.call_args.kwargs["data"])
+        # A pending adjustment is not permission to enqueue it again.
+        with pytest.raises(HomeAssistantError, match="never retry"):
+            await _async_repair_historical_baseline(hass, call)
+        adjust.assert_called_once()
         for row in rows:
             row["sum"] += 1.0
         result = await _async_repair_historical_baseline(
