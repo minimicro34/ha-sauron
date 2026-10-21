@@ -270,7 +270,7 @@ class TestTwoTier401Retry:
         assert result == {"indexValue": 42.0}
         mock_session.post.assert_called_once()  # one re-auth between the two GETs
 
-    async def test_get_401_then_fresh_token_401_raises_auth_error(
+    async def test_get_401_then_fresh_token_401_raises_transient_error(
         self, mock_session: MagicMock
     ) -> None:
         mock_session.post.return_value = _make_response(200, _auth_with_ttl(3600))
@@ -292,7 +292,7 @@ class TestTwoTier401Retry:
             ),
         )
 
-        with pytest.raises(SauronAuthError, match="rejected fresh token"):
+        with pytest.raises(SauronTransientError, match="rejected fresh token"):
             await client.async_get_meter_last_index("SUB001")
 
     async def test_get_401_then_auth_endpoint_500_raises_transient(
