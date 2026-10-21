@@ -7,7 +7,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from homeassistant.config_entries import ConfigFlow
 
 # The lightweight HA test stub does not implement the real ConfigFlow
