@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+import importlib
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from custom_components.sauron import config_flow
+from homeassistant.config_entries import ConfigFlow
+
+# The lightweight HA test stub does not implement the real ConfigFlow
+# __init_subclass__(domain=...) hook. Patch only during module import.
+with patch.object(
+    ConfigFlow,
+    "__init_subclass__",
+    classmethod(lambda cls, **kwargs: None),
+):
+    config_flow = importlib.import_module("custom_components.sauron.config_flow")
 from custom_components.sauron.const import (
     CONF_CLIENT_ID,
     CONF_LOGIN,
