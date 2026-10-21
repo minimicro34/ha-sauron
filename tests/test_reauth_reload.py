@@ -17,7 +17,9 @@ from custom_components.sauron.const import (
 
 
 @pytest.mark.asyncio
-async def test_reauth_updates_credentials_and_schedules_reload(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_reauth_updates_credentials_and_schedules_reload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A successful reauth must not call async_update_reload_and_abort."""
     async def probe(session: object, login: str, password: str) -> tuple[str, str]:
         assert login == "updated@example.com"
