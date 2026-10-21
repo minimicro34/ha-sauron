@@ -143,7 +143,7 @@ class SauronConfigFlow(ConfigFlow, domain=DOMAIN):
                 if subscription_id != entry.data.get(CONF_SUBSCRIPTION_ID):
                     errors["base"] = "wrong_account"
                 else:
-                    return self.async_update_reload_and_abort(
+                    result = self.async_update_and_abort(
                         entry,
                         data_updates={
                             CONF_LOGIN: login,
@@ -151,6 +151,10 @@ class SauronConfigFlow(ConfigFlow, domain=DOMAIN):
                             CONF_CLIENT_ID: client_id,
                         },
                     )
+                    # Schedule explicitly: the options-only update listener
+                    # deliberately ignores credential/data changes.
+                    self.hass.config_entries.async_schedule_reload(entry.entry_id)
+                    return result
 
         return self.async_show_form(
             step_id="reauth_confirm",

@@ -277,4 +277,4 @@ The estimated cumulative water index, updated dashboard, documentation and relat
 
 ## License
 
-[MIT](LICENSE) — © 2026 Nicolas Diguet and Nicolas Chantrein
+[GPL-3.0](LICENSE) — © 2026 Nicolas Diguet and Nicolas Chantrein.\n\nThis fork is distributed under GPL-3.0. It incorporates code originally\nlicensed under MIT by Nicolas Diguet (@netnic0); the original MIT license\nand copyright notices are preserved in [LICENSE-MIT](LICENSE-MIT).

@@ -164,7 +164,17 @@ class SauronApiClient:
         assert self._cache is not None
         status2, body2 = await self._do_get(path, self._cache.access_token, params)
         if status2 in (401, 403):
-            raise SauronAuthError(f"Endpoint {path} rejected fresh token")
+            # Authentication succeeded; an endpoint-specific rejection is not
+            # evidence that the stored account credentials are invalid.
+            # Keep the fresh token and retry this request on the next poll.
+            _LOGGER.warning(
+                "SAUR endpoint %s rejected freshly authenticated token (HTTP %d); "
+                "treating as transient rather than requesting reauthentication",
+                path.split("/")[-1], status2,
+            )
+            raise SauronTransientError(
+                f"SAUR endpoint rejected fresh token (HTTP {status2})"
+            )
         return body2
 
     async def _do_get(
