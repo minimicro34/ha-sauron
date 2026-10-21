@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4](https://github.com/minimicro34/ha-sauron/compare/v0.6.3...v0.6.4) - 2026-10-21
+
+### Fixed
+
+- Treat HTTP 401/403 returned by a SAUR data endpoint after successful token renewal as a transient API failure, rather than incorrectly requesting Home Assistant account reauthentication.
+- Preserve genuine invalid-credential errors so that Home Assistant still requests reauthentication when the login itself is rejected.
+
+### Tests
+
+- Added three authentication recovery regression tests and updated the existing fresh-token rejection test.
+- Validated 246 passing tests with 93.57% coverage, plus Ruff, hassfest and HACS checks ([PR #10](https://github.com/minimicro34/ha-sauron/pull/10)).
+
+### Notes
+
+- No changes to Recorder statistics, historical imports or the 36-month audit limit.
+- Home Assistant 2026.12 update-listener compatibility warning remains a follow-up item.
+
 ## [0.6.3](https://github.com/minimicro34/ha-sauron/compare/v0.6.2...v0.6.3) - 2026-10-20
 
 ### Added
