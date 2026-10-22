@@ -21,6 +21,13 @@ button,select{border:1px solid var(--divider-color);border-radius:8px;background
 button[aria-pressed=true]{background:var(--primary-color);color:var(--text-primary-color,#fff)}
 .chart{width:100%;height:auto;display:block;overflow:visible}
 details{margin-top:14px}summary{cursor:pointer;font-weight:600}
+.diagnostic-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px;margin-top:14px}
+.diagnostic-group{background:var(--secondary-background-color);border-radius:12px;padding:14px;min-width:0}
+.diagnostic-group h4{font-size:.9rem;margin:0 0 12px;font-weight:600}
+.diagnostic-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:14px}
+.diagnostic-item{min-width:0}
+.diagnostic-label{font-size:.78rem;color:var(--secondary-text-color);margin-bottom:5px}
+.diagnostic-value{font-size:.95rem;font-weight:500;overflow-wrap:anywhere;line-height:1.4}
 .notice{font-size:.85rem;color:var(--secondary-text-color);margin-top:10px}
 `;
 class SauronCard extends HTMLElement {
@@ -72,6 +79,38 @@ class SauronCard extends HTMLElement {
   }
   _metric(key,entities){const state=this._hass?.states[entities[key]];return '<div class="metric"><div class="muted">'+LABELS[key]+'</div><div class="value">'+fmt(state)+'</div></div>';}
   _rows(keys,entities){return '<div class="rows">'+keys.filter(k=>entities[k]).map(k=>'<div class="row"><span>'+LABELS[k]+'</span><span>'+fmt(this._hass?.states[entities[k]])+'</span></div>').join("")+'</div>';}
+  _diagnosticValue(key,entities){
+    const state=this._hass?.states[entities[key]];
+    if(!state||["unknown","unavailable"].includes(state.state))return "—";
+    if(key==="daily_date"||key==="last_successful_poll"){
+      const date=new Date(state.state);
+      if(!Number.isNaN(date.getTime())){
+        const options=key==="daily_date"?{dateStyle:"medium"}:{dateStyle:"medium",timeStyle:"short"};
+        return esc(new Intl.DateTimeFormat(this._hass?.locale?.language||"fr-FR",options).format(date));
+      }
+    }
+    if(key==="data_freshness_hours"){
+      const hours=Number(state.state);
+      if(Number.isFinite(hours)&&hours>=0){
+        const minutes=Math.round(hours*60);
+        return esc(minutes>=60?Math.floor(minutes/60)+" h"+(minutes%60?" "+minutes%60+" min":""):minutes+" min");
+      }
+    }
+    return fmt(state);
+  }
+  _diagnostics(entities){
+    const groups=[
+      ["Suivi des données",["daily_date","last_successful_poll","data_freshness_hours"]],
+      ["Compteur",["meter_serial","meter_brand","meter_model","meter_diameter"]],
+      ["Communication",["telereleve_tech"]]
+    ];
+    return '<div class="diagnostic-groups">'+groups.map(([title,keys])=>{
+      const items=keys.filter(key=>entities[key]).map(key=>
+        '<div class="diagnostic-item"><div class="diagnostic-label">'+LABELS[key]+'</div><div class="diagnostic-value">'+this._diagnosticValue(key,entities)+'</div></div>'
+      ).join("");
+      return items?'<section class="diagnostic-group"><h4>'+title+'</h4><div class="diagnostic-items">'+items+'</div></section>':"";
+    }).join("")+'</div>';
+  }
   _chart(){
     if(!this._stats.length)return '<p class="muted">Aucune statistique disponible sur la période.</p>';
     const data=this._stats.map(r=>({date:new Date(/^\d+(?:\.\d+)?$/.test(String(r.start))?Number(r.start)<1e11?Number(r.start)*1000:Number(r.start):r.start),value:Number(r.change ?? r.state ?? 0)})).filter(x=>Number.isFinite(x.value)&&!Number.isNaN(x.date.getTime()));
@@ -86,7 +125,7 @@ class SauronCard extends HTMLElement {
     const compact=this._config.mode==="compact";
     const detailsOpen=this.shadowRoot.querySelector("details")?.open||false;
     const options=ids.map(id=>'<option value="'+esc(id)+'" '+(id===this._entryId()?'selected':'')+'>'+esc(this._entries?.find(e=>e.entry_id===id)?.title||id)+'</option>').join("");
-    this.shadowRoot.innerHTML='<style>'+style+'</style><ha-card><header><div><h2>💧 SAUron</h2><div class="muted">Consommation d’eau</div></div>'+(ids.length>1?'<select id="meter" aria-label="Compteur">'+options+'</select>':'')+'</header>'+(ids.length===0?'<p class="muted">Recherche des compteurs SAUron…</p>':'<div class="metrics">'+["daily_liters","weekly_m3","monthly_m3","yearly_m3"].filter(k=>entities[k]).map(k=>this._metric(k,entities)).join("")+'</div>'+(compact?"":'<h3>Index</h3>'+this._rows(["estimated_index","last_index","last_index_date"],entities))+(this._config.show_chart===false?"":'<h3>Historique</h3><div class="controls">'+[7,30,90].map(d=>'<button data-days="'+d+'" aria-pressed="'+(d===this._days)+'">'+d+' j</button>').join("")+'</div>'+this._chart())+(this._config.show_diagnostics===false||compact?"":'<details><summary>Informations et diagnostic</summary>'+this._rows(["daily_date","data_freshness_hours","last_successful_poll","meter_serial","meter_brand","meter_model","meter_diameter","telereleve_tech"],entities)+'</details>'))+(this._error?'<p class="notice">'+esc(this._error)+'</p>':'')+'</ha-card>';
+    this.shadowRoot.innerHTML='<style>'+style+'</style><ha-card><header><div><h2>💧 SAUron</h2><div class="muted">Consommation d’eau</div></div>'+(ids.length>1?'<select id="meter" aria-label="Compteur">'+options+'</select>':'')+'</header>'+(ids.length===0?'<p class="muted">Recherche des compteurs SAUron…</p>':'<div class="metrics">'+["daily_liters","weekly_m3","monthly_m3","yearly_m3"].filter(k=>entities[k]).map(k=>this._metric(k,entities)).join("")+'</div>'+(compact?"":'<h3>Index</h3>'+this._rows(["estimated_index","last_index","last_index_date"],entities))+(this._config.show_chart===false?"":'<h3>Historique</h3><div class="controls">'+[7,30,90].map(d=>'<button data-days="'+d+'" aria-pressed="'+(d===this._days)+'">'+d+' j</button>').join("")+'</div>'+this._chart())+(this._config.show_diagnostics===false||compact?"":'<details><summary>Informations et diagnostic</summary>'+this._diagnostics(entities)+'</details>'))+(this._error?'<p class="notice">'+esc(this._error)+'</p>':'')+'</ha-card>';
     if(detailsOpen && this.shadowRoot.querySelector("details"))this.shadowRoot.querySelector("details").open=true;
     this.shadowRoot.querySelector("#meter")?.addEventListener("change",e=>{this._config={...this._config,entry_id:e.target.value};this._stats=[];this._loadStats();});
     this.shadowRoot.querySelectorAll("[data-days]").forEach(b=>b.addEventListener("click",()=>{this._days=Number(b.dataset.days);this._stats=[];this._loadStats();}));
