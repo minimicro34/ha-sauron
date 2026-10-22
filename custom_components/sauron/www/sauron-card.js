@@ -1,4 +1,4 @@
-/* SAURon Lovelace card — v0.7.0 beta 1. No external UI dependencies. */
+/* SAURon Lovelace card. No external UI dependencies. */
 const DOMAIN = "sauron";
 const KEYS = ["estimated_index","daily_liters","daily_date","weekly_m3","previous_week_m3","monthly_m3","yearly_m3","last_index","last_index_date","data_freshness_hours","last_successful_poll","meter_serial","meter_brand","meter_model","meter_diameter","telereleve_tech"];
 const LABELS = {estimated_index:"Index estimé",daily_liters:"Dernière consommation",daily_date:"Date de consommation",weekly_m3:"Cette semaine",previous_week_m3:"Semaine précédente",monthly_m3:"Ce mois",yearly_m3:"Cette année",last_index:"Index physique",last_index_date:"Dernier relevé physique",data_freshness_hours:"Âge des données",last_successful_poll:"Dernier polling",meter_serial:"N° de série",meter_brand:"Fabricant",meter_model:"Modèle",meter_diameter:"Diamètre",telereleve_tech:"Télérelève"};
@@ -74,7 +74,7 @@ class SauronCard extends HTMLElement {
   _rows(keys,entities){return '<div class="rows">'+keys.filter(k=>entities[k]).map(k=>'<div class="row"><span>'+LABELS[k]+'</span><span>'+fmt(this._hass?.states[entities[k]])+'</span></div>').join("")+'</div>';}
   _chart(){
     if(!this._stats.length)return '<p class="muted">Aucune statistique disponible sur la période.</p>';
-    const data=this._stats.map(r=>({date:new Date(/^\d+(?:\.\d+)?$/.test(String(r.start))?Number(r.start)*1000:r.start),value:Number(r.change ?? r.state ?? 0)})).filter(x=>Number.isFinite(x.value)&&!Number.isNaN(x.date.getTime()));
+    const data=this._stats.map(r=>({date:new Date(/^\d+(?:\.\d+)?$/.test(String(r.start))?Number(r.start)<1e11?Number(r.start)*1000:Number(r.start):r.start),value:Number(r.change ?? r.state ?? 0)})).filter(x=>Number.isFinite(x.value)&&!Number.isNaN(x.date.getTime()));
     if(!data.length)return '<p class="muted">Aucune donnée exploitable.</p>';
     const max=Math.max(.001,...data.map(x=>x.value));const width=800,height=225,base=185,step=width/data.length;
     const bars=data.map((x,i)=>{const h=Math.max(0,(x.value/max)*160);const xx=i*step+step*.13;const label=x.date.toLocaleDateString(undefined,{day:"numeric",month:"short"});return '<rect x="'+xx+'" y="'+(base-h)+'" width="'+(step*.74)+'" height="'+h+'" rx="3" fill="var(--primary-color)" opacity=".78"><title>'+esc(label+" : "+x.value.toFixed(3)+" m³")+'</title></rect>'+(data.length<=15||i%Math.ceil(data.length/10)===0?'<text x="'+(xx+step*.37)+'" y="207" text-anchor="middle" font-size="12" fill="var(--secondary-text-color)">'+esc(label)+'</text>':"");}).join("");
