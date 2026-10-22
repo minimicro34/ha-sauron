@@ -113,11 +113,36 @@ class SauronCard extends HTMLElement {
   }
   _chart(){
     if(!this._stats.length)return '<p class="muted">Aucune statistique disponible sur la période.</p>';
-    const data=this._stats.map(r=>({date:new Date(/^\d+(?:\.\d+)?$/.test(String(r.start))?Number(r.start)<1e11?Number(r.start)*1000:Number(r.start):r.start),value:Number(r.change ?? r.state ?? 0)})).filter(x=>Number.isFinite(x.value)&&!Number.isNaN(x.date.getTime()));
+    const data=this._stats.map(r=>{
+      const raw=r.start;
+      const numeric=/^\\d+(?:\\.\\d+)?$/.test(String(raw));
+      const date=new Date(numeric?(Number(raw)<1e11?Number(raw)*1000:Number(raw)):raw);
+      return {date,value:Number(r.change ?? r.state ?? 0)};
+    }).filter(x=>Number.isFinite(x.value)&&!Number.isNaN(x.date.getTime()));
     if(!data.length)return '<p class="muted">Aucune donnée exploitable.</p>';
-    const max=Math.max(.001,...data.map(x=>x.value));const width=800,height=225,base=185,step=width/data.length;
-    const bars=data.map((x,i)=>{const h=Math.max(0,(x.value/max)*160);const xx=i*step+step*.13;const label=x.date.toLocaleDateString(undefined,{day:"numeric",month:"short"});return '<rect x="'+xx+'" y="'+(base-h)+'" width="'+(step*.74)+'" height="'+h+'" rx="3" fill="var(--primary-color)" opacity=".78"><title>'+esc(label+" : "+x.value.toFixed(3)+" m³")+'</title></rect>'+(data.length<=15||i%Math.ceil(data.length/10)===0?'<text x="'+(xx+step*.37)+'" y="207" text-anchor="middle" font-size="12" fill="var(--secondary-text-color)">'+esc(label)+'</text>':"");}).join("");
-    return '<svg class="chart" viewBox="0 0 800 225" role="img" aria-label="Historique de consommation en mètres cubes"><line x1="0" x2="800" y1="185" y2="185" stroke="var(--divider-color)"/>'+bars+'</svg>';
+    const locale=this._hass?.locale?.language||"fr-FR";
+    const formatDate=date=>date.toLocaleDateString(locale,{day:"numeric",month:"short"});
+    const max=Math.max(.001,...data.map(x=>x.value));
+    const width=800,height=250,left=62,right=12,top=14,base=208;
+    const plotWidth=width-left-right,plotHeight=base-top,step=plotWidth/data.length;
+    const tickCount=4;
+    const grid=Array.from({length:tickCount+1},(_,i)=>{
+      const value=max*i/tickCount,y=base-(value/max)*plotHeight;
+      const label=value.toLocaleString(locale,{maximumFractionDigits:3});
+      return '<line x1="'+left+'" x2="'+(width-right)+'" y1="'+y+'" y2="'+y+'" stroke="var(--divider-color)" stroke-dasharray="'+(i===0?"none":"3 5")+'" opacity=".65"/>'+
+        '<text x="'+(left-9)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="var(--secondary-text-color)">'+esc(label)+'</text>';
+    }).join("");
+    const labelEvery=Math.max(1,Math.ceil(data.length/9));
+    const bars=data.map((x,i)=>{
+      const h=Math.max(0,x.value/max*plotHeight),xx=left+i*step+step*.13;
+      const label=formatDate(x.date),barWidth=Math.max(1,step*.74);
+      const tooltip=x.date.toLocaleDateString(locale,{dateStyle:"full"})+" : "+x.value.toLocaleString(locale,{maximumFractionDigits:3})+" m³";
+      const bar='<rect x="'+xx+'" y="'+(base-h)+'" width="'+barWidth+'" height="'+h+'" rx="'+Math.min(3,barWidth/2)+'" fill="var(--primary-color)" opacity=".82"><title>'+esc(tooltip)+'</title></rect>';
+      const showLabel=i===0||i===data.length-1||(i%labelEvery===0&&i+labelEvery<data.length);
+      return bar+(showLabel?'<text x="'+(xx+barWidth/2)+'" y="232" text-anchor="middle" font-size="11" fill="var(--secondary-text-color)">'+esc(label)+'</text>':"");
+    }).join("");
+    return '<svg class="chart" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="Historique de consommation en mètres cubes">'+
+      '<text x="8" y="11" font-size="11" fill="var(--secondary-text-color)">m³</text>'+grid+bars+'</svg>';
   }
   _render(){
     if(!this.shadowRoot)return;
