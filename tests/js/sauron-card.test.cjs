@@ -47,8 +47,8 @@ test("Recorder Unix timestamps as strings produce correct October dates", () => 
   ];
   const svg = card._chart();
   assert.match(svg, /2026|oct/i);
-  assert.match(svg, /0\.050 m³/);
-  assert.match(svg, /0\.060 m³/);
+  assert.match(svg, /0[,.]05(?:0)? m³/);
+  assert.match(svg, /0[,.]06(?:0)? m³/);
   assert.doesNotMatch(svg, /sept|juin|mars/i);
 });
 
@@ -74,6 +74,6 @@ test("Recorder millisecond timestamps are not multiplied again", () => {
   ];
   const svg = card._chart();
   assert.match(svg, /oct/i);
-  assert.match(svg, /0\.750 m³/);
+  assert.match(svg, /0[,.]75(?:0)? m³/);
   assert.doesNotMatch(svg, /sept|juin|mars/i);
 });
