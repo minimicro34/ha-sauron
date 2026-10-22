@@ -28,6 +28,7 @@ class SauronCard extends HTMLElement {
   setConfig(config){this._config={show_diagnostics:true,show_chart:true,mode:"detailed",...config};this._days=Number(config.days)||7;this._registry=null;this._entries=null;this._render();}
   set hass(hass){const first=!this._hass;this._hass=hass;if(first||!this._registry){this._discover();}else{this._render();}}
   getCardSize(){return this._config.mode==="compact"?3:7;}
+  getGridOptions(){return {columns:this._config.mode==="compact"?4:12,min_columns:3,rows:"auto"};}
   static getConfigElement(){return document.createElement("sauron-card-editor");}
   static getStubConfig(){return {type:"custom:sauron-card",mode:"detailed",days:7};}
   async _discover(){
@@ -73,7 +74,7 @@ class SauronCard extends HTMLElement {
   _rows(keys,entities){return '<div class="rows">'+keys.filter(k=>entities[k]).map(k=>'<div class="row"><span>'+LABELS[k]+'</span><span>'+fmt(this._hass?.states[entities[k]])+'</span></div>').join("")+'</div>';}
   _chart(){
     if(!this._stats.length)return '<p class="muted">Aucune statistique disponible sur la période.</p>';
-    const data=this._stats.map(r=>({date:new Date(typeof r.start==="number"?r.start*1000:r.start),value:Number(r.change ?? r.state ?? 0)})).filter(x=>Number.isFinite(x.value)&&!Number.isNaN(x.date.getTime()));
+    const data=this._stats.map(r=>({date:new Date(/^\d+(?:\.\d+)?$/.test(String(r.start))?Number(r.start)*1000:r.start),value:Number(r.change ?? r.state ?? 0)})).filter(x=>Number.isFinite(x.value)&&!Number.isNaN(x.date.getTime()));
     if(!data.length)return '<p class="muted">Aucune donnée exploitable.</p>';
     const max=Math.max(.001,...data.map(x=>x.value));const width=800,height=225,base=185,step=width/data.length;
     const bars=data.map((x,i)=>{const h=Math.max(0,(x.value/max)*160);const xx=i*step+step*.13;const label=x.date.toLocaleDateString(undefined,{day:"numeric",month:"short"});return '<rect x="'+xx+'" y="'+(base-h)+'" width="'+(step*.74)+'" height="'+h+'" rx="3" fill="var(--primary-color)" opacity=".78"><title>'+esc(label+" : "+x.value.toFixed(3)+" m³")+'</title></rect>'+(data.length<=15||i%Math.ceil(data.length/10)===0?'<text x="'+(xx+step*.37)+'" y="207" text-anchor="middle" font-size="12" fill="var(--secondary-text-color)">'+esc(label)+'</text>':"");}).join("");
