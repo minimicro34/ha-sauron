@@ -115,7 +115,7 @@ class SauronCard extends HTMLElement {
     if(!this._stats.length)return '<p class="muted">Aucune statistique disponible sur la période.</p>';
     const data=this._stats.map(r=>{
       const raw=r.start;
-      const numeric=/^\\d+(?:\\.\\d+)?$/.test(String(raw));
+      const numeric=/^\d+(?:\.\d+)?$/.test(String(raw));
       const date=new Date(numeric?(Number(raw)<1e11?Number(raw)*1000:Number(raw)):raw);
       return {date,value:Number(r.change ?? r.state ?? 0)};
     }).filter(x=>Number.isFinite(x.value)&&!Number.isNaN(x.date.getTime()));
