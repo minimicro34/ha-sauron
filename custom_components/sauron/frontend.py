@@ -3,11 +3,10 @@
 import asyncio
 import logging
 from pathlib import Path
-
-from homeassistant.loader import async_get_integration
 from urllib.parse import urlsplit
 
 from homeassistant.core import HomeAssistant
+from homeassistant.loader import async_get_integration
 
 _LOGGER = logging.getLogger(__name__)
 _CARD_PATH = "/sauron/sauron-card.js"
