@@ -34,12 +34,9 @@ class SauronCard extends HTMLElement {
     if(!this._hass||this._busy)return;
     this._busy=true;
     try{
-      const [registry,entries]=await Promise.all([
-        this._hass.callWS({type:"config/entity_registry/list"}),
-        this._hass.callWS({type:"config_entries/get"})
-      ]);
+      const registry=await this._hass.callWS({type:"config/entity_registry/list"});
       this._registry=(Array.isArray(registry)?registry:[]).filter(e=>e.platform===DOMAIN && e.entity_id?.startsWith("sensor."));
-      this._entries=(Array.isArray(entries)?entries:entries?.entries||[]).filter(e=>e.domain===DOMAIN);
+      this._entries=[];
       this._error="";
       await this._loadStats();
     }catch(e){this._error="Découverte SAUron impossible : "+String(e.message||e);}
@@ -63,10 +60,11 @@ class SauronCard extends HTMLElement {
     const entry=this._entryId();
     if(!entry||!this._hass)return;
     const statisticId="sauron:daily_water_"+entry.toLowerCase();
-    const start=new Date(Date.now()-(this._days+2)*86400000).toISOString();
+    const start=new Date(Date.now()-(this._days+3)*86400000).toISOString();
     try{
-      const response=await this._hass.callWS({type:"recorder/statistics_during_period",start_time:start,statistic_ids:[statisticId],period:"day",types:["sum","state","change"]});
-      this._stats=(response?.[statisticId]||[]).slice(-this._days);
+      const response=await this._hass.callWS({type:"recorder/statistics_during_period",start_time:start,statistic_ids:[statisticId],period:"day",types:["sum"]});
+      const rows=(response?.[statisticId]||[]).filter(r=>r.sum!==null && Number.isFinite(Number(r.sum)));
+      this._stats=rows.slice(1).map((r,i)=>({...r,change:Math.max(0,Number(r.sum)-Number(rows[i].sum))})).slice(-this._days);
       this._error="";
     }catch(e){this._stats=[];this._error="Historique indisponible : "+String(e.message||e);}
     this._render();
@@ -85,10 +83,12 @@ class SauronCard extends HTMLElement {
     if(!this.shadowRoot)return;
     const entities=this._entities(),ids=[...new Set((this._registry||[]).map(e=>e.config_entry_id).filter(Boolean))];
     const compact=this._config.mode==="compact";
+    const detailsOpen=this.shadowRoot.querySelector("details")?.open||false;
     const options=ids.map(id=>'<option value="'+esc(id)+'" '+(id===this._entryId()?'selected':'')+'>'+esc(this._entries?.find(e=>e.entry_id===id)?.title||id)+'</option>').join("");
     this.shadowRoot.innerHTML='<style>'+style+'</style><ha-card><header><div><h2>💧 SAUron</h2><div class="muted">Consommation d’eau</div></div>'+(ids.length>1?'<select id="meter" aria-label="Compteur">'+options+'</select>':'')+'</header>'+(ids.length===0?'<p class="muted">Recherche des compteurs SAUron…</p>':'<div class="metrics">'+["daily_liters","weekly_m3","monthly_m3","yearly_m3"].filter(k=>entities[k]).map(k=>this._metric(k,entities)).join("")+'</div>'+(compact?"":'<h3>Index</h3>'+this._rows(["estimated_index","last_index","last_index_date"],entities))+(this._config.show_chart===false?"":'<h3>Historique</h3><div class="controls">'+[7,30,90].map(d=>'<button data-days="'+d+'" aria-pressed="'+(d===this._days)+'">'+d+' j</button>').join("")+'</div>'+this._chart())+(this._config.show_diagnostics===false||compact?"":'<details><summary>Informations et diagnostic</summary>'+this._rows(["daily_date","data_freshness_hours","last_successful_poll","meter_serial","meter_brand","meter_model","meter_diameter","telereleve_tech"],entities)+'</details>'))+(this._error?'<p class="notice">'+esc(this._error)+'</p>':'')+'</ha-card>';
-    this.shadowRoot.querySelector("#meter")?.addEventListener("change",e=>{this._config={...this._config,entry_id:e.target.value};this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config},bubbles:true,composed:true}));this._loadStats();});
-    this.shadowRoot.querySelectorAll("[data-days]").forEach(b=>b.addEventListener("click",()=>{this._days=Number(b.dataset.days);this._loadStats();}));
+    if(detailsOpen && this.shadowRoot.querySelector("details"))this.shadowRoot.querySelector("details").open=true;
+    this.shadowRoot.querySelector("#meter")?.addEventListener("change",e=>{this._config={...this._config,entry_id:e.target.value};this._stats=[];this._loadStats();});
+    this.shadowRoot.querySelectorAll("[data-days]").forEach(b=>b.addEventListener("click",()=>{this._days=Number(b.dataset.days);this._stats=[];this._loadStats();}));
   }
 }
 class SauronCardEditor extends HTMLElement {
