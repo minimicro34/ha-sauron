@@ -1,7 +1,7 @@
 {
   "domain": "sauron",
   "name": "SAURon",
-  "after_dependencies": ["recorder"],
+  "after_dependencies": ["recorder", "http"],
   "codeowners": [
     "@netnic0",
     "@minimicro34"
