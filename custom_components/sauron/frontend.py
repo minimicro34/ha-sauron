@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,6 +16,8 @@ _PATH_KEY = "sauron_frontend_path_registered"
 
 async def async_register_card(hass: HomeAssistant) -> None:
     """Expose bundled JavaScript and register a single storage-mode resource."""
+    from homeassistant.components.http import StaticPathConfig
+
     async with hass.data.setdefault(_LOCK_KEY, asyncio.Lock()):
         if not hass.data.get(_PATH_KEY):
             await hass.http.async_register_static_paths(
