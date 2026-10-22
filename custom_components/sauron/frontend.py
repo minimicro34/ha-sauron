@@ -10,7 +10,8 @@ from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 _CARD_PATH = "/sauron/sauron-card.js"
-_CARD_VERSION = json.loads((Path(__file__).parent / "manifest.json").read_text(encoding="utf-8"))["version"]
+_MANIFEST_PATH = Path(__file__).parent / "manifest.json"
+_CARD_VERSION = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))["version"]
 _CARD_URL = f"{_CARD_PATH}?v={_CARD_VERSION}"
 
 _LOCK_KEY = "sauron_frontend_lock"
