@@ -65,3 +65,15 @@ test("Sections grid width adapts to detailed and compact modes", () => {
   card.setConfig({ mode: "compact" });
   assert.equal(card.getGridOptions().columns, 4);
 });
+
+test("Recorder millisecond timestamps are not multiplied again", () => {
+  const card = new Card();
+  card._stats = [
+    { start: 1792015200000, change: 0.09 },
+    { start: 1792101600000, change: 0.75 },
+  ];
+  const svg = card._chart();
+  assert.match(svg, /oct/i);
+  assert.match(svg, /0\.750 m³/);
+  assert.doesNotMatch(svg, /sept|juin|mars/i);
+});
