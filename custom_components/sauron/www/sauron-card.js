@@ -19,7 +19,11 @@ h2 {font-size:1.2rem;font-weight:600;margin:0} h3{font-size:1rem;margin:18px 0 1
 .controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 button,select{border:1px solid var(--divider-color);border-radius:8px;background:var(--secondary-background-color);color:var(--primary-text-color);padding:7px 10px;cursor:pointer}
 button[aria-pressed=true]{background:var(--primary-color);color:var(--text-primary-color,#fff)}
+.chart-wrap{position:relative}
 .chart{width:100%;height:auto;display:block;overflow:visible}
+.chart rect[data-tooltip]{cursor:crosshair}
+.chart-tooltip{position:absolute;z-index:3;pointer-events:none;display:none;max-width:240px;padding:9px 12px;border-radius:9px;background:var(--card-background-color,#242424);color:var(--primary-text-color);border:1px solid var(--divider-color);box-shadow:0 4px 14px #0005;font-size:.85rem;white-space:nowrap}
+.chart-tooltip.visible{display:block}
 details{margin-top:14px}summary{cursor:pointer;font-weight:600}
 .diagnostic-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px;margin-top:14px}
 .diagnostic-group{background:var(--secondary-background-color);border-radius:12px;padding:14px;min-width:0}
@@ -137,7 +141,7 @@ class SauronCard extends HTMLElement {
       const h=Math.max(0,x.value/max*plotHeight),xx=left+i*step+step*.13;
       const label=formatDate(x.date),barWidth=Math.max(1,step*.74);
       const tooltip=x.date.toLocaleDateString(locale,{dateStyle:"full"})+" : "+x.value.toLocaleString(locale,{maximumFractionDigits:3})+" m³";
-      const bar='<rect x="'+xx+'" y="'+(base-h)+'" width="'+barWidth+'" height="'+h+'" rx="'+Math.min(3,barWidth/2)+'" fill="var(--primary-color)" opacity=".82"><title>'+esc(tooltip)+'</title></rect>';
+      const bar='<rect x="'+xx+'" y="'+(base-h)+'" width="'+barWidth+'" height="'+h+'" rx="'+Math.min(3,barWidth/2)+'" fill="var(--primary-color)" opacity=".82" data-tooltip="'+esc(tooltip)+'" tabindex="0" aria-label="'+esc(tooltip)+'"></rect>';
       const showLabel=i===0||i===data.length-1||(i%labelEvery===0&&i+labelEvery<data.length);
       return bar+(showLabel?'<text x="'+(xx+barWidth/2)+'" y="232" text-anchor="middle" font-size="11" fill="var(--secondary-text-color)">'+esc(label)+'</text>':"");
     }).join("");
@@ -150,9 +154,37 @@ class SauronCard extends HTMLElement {
     const compact=this._config.mode==="compact";
     const detailsOpen=this.shadowRoot.querySelector("details")?.open||false;
     const options=ids.map(id=>'<option value="'+esc(id)+'" '+(id===this._entryId()?'selected':'')+'>'+esc(this._entries?.find(e=>e.entry_id===id)?.title||id)+'</option>').join("");
-    this.shadowRoot.innerHTML='<style>'+style+'</style><ha-card><header><div><h2>💧 SAUron</h2><div class="muted">Consommation d’eau</div></div>'+(ids.length>1?'<select id="meter" aria-label="Compteur">'+options+'</select>':'')+'</header>'+(ids.length===0?'<p class="muted">Recherche des compteurs SAUron…</p>':'<div class="metrics">'+["daily_liters","weekly_m3","monthly_m3","yearly_m3"].filter(k=>entities[k]).map(k=>this._metric(k,entities)).join("")+'</div>'+(compact?"":'<h3>Index</h3>'+this._rows(["estimated_index","last_index","last_index_date"],entities))+(this._config.show_chart===false?"":'<h3>Historique</h3><div class="controls">'+[7,30,90].map(d=>'<button data-days="'+d+'" aria-pressed="'+(d===this._days)+'">'+d+' j</button>').join("")+'</div>'+this._chart())+(this._config.show_diagnostics===false||compact?"":'<details><summary>Informations et diagnostic</summary>'+this._diagnostics(entities)+'</details>'))+(this._error?'<p class="notice">'+esc(this._error)+'</p>':'')+'</ha-card>';
+    this.shadowRoot.innerHTML='<style>'+style+'</style><ha-card><header><div><h2>💧 SAUron</h2><div class="muted">Consommation d’eau</div></div>'+(ids.length>1?'<select id="meter" aria-label="Compteur">'+options+'</select>':'')+'</header>'+(ids.length===0?'<p class="muted">Recherche des compteurs SAUron…</p>':'<div class="metrics">'+["daily_liters","weekly_m3","monthly_m3","yearly_m3"].filter(k=>entities[k]).map(k=>this._metric(k,entities)).join("")+'</div>'+(compact?"":'<h3>Index</h3>'+this._rows(["estimated_index","last_index","last_index_date"],entities))+(this._config.show_chart===false?"":'<h3>Historique</h3><div class="controls">'+[7,30,90].map(d=>'<button data-days="'+d+'" aria-pressed="'+(d===this._days)+'">'+d+' j</button>').join("")+'</div><div class="chart-wrap">'+this._chart()+'<div class="chart-tooltip" role="status"></div></div>')+(this._config.show_diagnostics===false||compact?"":'<details><summary>Informations et diagnostic</summary>'+this._diagnostics(entities)+'</details>'))+(this._error?'<p class="notice">'+esc(this._error)+'</p>':'')+'</ha-card>';
     if(detailsOpen && this.shadowRoot.querySelector("details"))this.shadowRoot.querySelector("details").open=true;
     this.shadowRoot.querySelector("#meter")?.addEventListener("change",e=>{this._config={...this._config,entry_id:e.target.value};this._stats=[];this._loadStats();});
+    const wrap=this.shadowRoot.querySelector(".chart-wrap");
+    const popup=wrap?.querySelector(".chart-tooltip");
+    if(wrap&&popup){
+      const show=(bar,event)=>{
+        popup.textContent=bar.dataset.tooltip;
+        popup.classList.add("visible");
+        const bounds=wrap.getBoundingClientRect();
+        const barBounds=bar.getBoundingClientRect();
+        const x=event?.clientX??(barBounds.left+barBounds.width/2);
+        const y=event?.clientY??barBounds.top;
+        const popupWidth=popup.offsetWidth,popupHeight=popup.offsetHeight;
+        const left=Math.max(0,Math.min(x-bounds.left+12,bounds.width-popupWidth));
+        const top=Math.max(0,y-bounds.top-popupHeight-8);
+        popup.style.left=left+"px";
+        popup.style.top=top+"px";
+      };
+      const hide=()=>popup.classList.remove("visible");
+      wrap.querySelectorAll("rect[data-tooltip]").forEach(bar=>{
+        bar.addEventListener("pointerenter",e=>show(bar,e));
+        bar.addEventListener("pointermove",e=>{if(e.pointerType!=="touch")show(bar,e);});
+        bar.addEventListener("pointerleave",hide);
+        bar.addEventListener("focus",()=>show(bar));
+        bar.addEventListener("blur",hide);
+        bar.addEventListener("click",e=>show(bar,e));
+      });
+      wrap.addEventListener("pointerleave",hide);
+      wrap.addEventListener("click",e=>{if(!e.target.closest("rect[data-tooltip]"))hide();});
+    }
     this.shadowRoot.querySelectorAll("[data-days]").forEach(b=>b.addEventListener("click",()=>{this._days=Number(b.dataset.days);this._stats=[];this._loadStats();}));
   }
 }
