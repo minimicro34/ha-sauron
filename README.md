@@ -188,19 +188,39 @@ Entity IDs may differ depending on the language in which the entities were first
 
 ---
 
-## Lovelace dashboard example
+## SAURon Lovelace card
 
-A complete example is available in [`lovelace_examples/water_dashboard.yaml`](lovelace_examples/water_dashboard.yaml).
+SAURon includes a built-in Home Assistant dashboard card. No third-party Lovelace cards are required. The card discovers the integration's entities and uses the dated Recorder statistics for its consumption chart.
 
-It includes:
+Add a **Manual** card to your dashboard with:
 
-- daily, current week, month and year consumption;
-- 7-day and 30-day consumption graphs based on SAURon's dated Recorder statistics;
-- the estimated and physical meter indexes;
-- data freshness diagnostics;
-- physical meter metadata such as serial number, manufacturer, model, diameter and remote-reading technology.
+```yaml
+type: custom:sauron-card
+mode: detailed
+days: 7
+show_chart: true
+show_diagnostics: true
+```
 
-The example uses only built-in Home Assistant cards (Tile, Entities, Heading and Statistics Graph); no Mushroom, ApexCharts Card or card-mod installation is required. Replace the sample `sauron:daily_water_...` statistic ID with the ID shown under Developer Tools → Statistics for your SAURon entry.
+The card displays the latest daily consumption, weekly/monthly/yearly totals, estimated and physical indexes, and an interactive consumption chart. Switch between **7, 30 and 90 days** directly from the card. Hover over a bar (or tap it on a touchscreen) to display the date and consumption immediately.
+
+The expandable **Information and diagnostics** panel groups data freshness, meter details, and remote-reading technology. The layout adapts to narrow mobile dashboards.
+
+### Card options
+
+| Option | Default | Description |
+|---|---|---|
+| `mode` | `detailed` | `detailed` shows indexes and diagnostics; `compact` shows summary metrics and the chart |
+| `days` | `7` | Initial chart period: `7`, `30`, or `90` |
+| `show_chart` | `true` | Display the historical consumption chart |
+| `show_diagnostics` | `true` | Display the expandable diagnostics in detailed mode |
+| `entry_id` | Automatic | Optional Home Assistant config entry ID when multiple SAURon subscriptions exist |
+
+The card's frontend resource is registered automatically by the integration. Restart Home Assistant after installing or updating SAURon so the resource version is refreshed.
+
+### Screenshots
+
+Screenshots of the overview, 7-day, 30-day and 90-day views, and the expanded diagnostics will be added before the v1.0.0 release.
 
 ---
 
