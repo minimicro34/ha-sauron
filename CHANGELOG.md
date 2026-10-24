@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0](https://github.com/minimicro34/ha-sauron/compare/v0.6.4...v1.0.0) - 2026-10-24
+
+### Added
+
+- Built-in `custom:sauron-card` Lovelace card, automatically registered as a frontend resource by the integration; no external card dependencies required.
+- Responsive detailed and compact views, 7-, 30- and 90-day daily-consumption charts, instant hover tooltips, and expandable meter diagnostics.
+- Visual card editor, automatic SAURon entity discovery, and a subscription selector for installations with multiple configured meters.
+- JavaScript card tests and frontend resource-registration tests.
+- Four Lovelace screenshots in `docs/` and updated card setup instructions in the README.
+
+### Changed
+
+- Updated frontend resource registration dependencies and integration version for the stable release.
+- Documented the implemented token persistence and expiry-aware authentication lifecycle in `docs/token-persistance.md`, retaining the original design decisions for reference.
+
+### Removed
+
+- Obsolete `lovelace_examples/water_dashboard.yaml` example, superseded by the bundled Lovelace card.
+- Outdated beta-1 Lovelace test guide.
+
+### Fixed
+
+- Preserve genuine zero-consumption days in the chart without interpolation; display their actual values as reported by SAUR.
+
 ## [0.6.4](https://github.com/minimicro34/ha-sauron/compare/v0.6.3...v0.6.4) - 2026-10-21
 
 ### Fixed
