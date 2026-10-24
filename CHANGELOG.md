@@ -9,25 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Built-in `custom:sauron-card` Lovelace card, automatically registered as a frontend resource by the integration; no external card dependencies required.
-- Responsive detailed and compact views, 7-, 30- and 90-day daily-consumption charts, instant hover tooltips, and expandable meter diagnostics.
-- Visual card editor, automatic SAURon entity discovery, and a subscription selector for installations with multiple configured meters.
-- JavaScript card tests and frontend resource-registration tests.
-- Four Lovelace screenshots in `docs/` and updated card setup instructions in the README.
+- Built-in `custom:sauron-card` for Home Assistant dashboards, with automatic frontend resource registration in Lovelace storage mode and no Mushroom or ApexCharts dependency.
+- Responsive compact and detailed layouts, compatible with Home Assistant Sections dashboards and narrow mobile screens.
+- Consumption overview showing the latest published daily value, weekly/monthly/yearly totals, and estimated and physical water indexes.
+- Interactive daily water consumption chart with 7-, 30- and 90-day periods, m³ values, readable date labels and grid, and immediate hover/touch tooltips.
+- Recorder-backed historical chart using SAURon's existing dated daily water statistics, rather than reconstructing history from the latest sensor state.
+- Expandable information and diagnostics section covering data freshness, meter details and remote-reading technology.
+- Visual card editor, automatic integration entity discovery and optional configuration-entry selection for multiple SAUR subscriptions.
+- Frontend registration regression tests and JavaScript card tests, plus four README screenshots for 7/30/90-day views and diagnostics.
 
 ### Changed
 
-- Updated frontend resource registration dependencies and integration version for the stable release.
-- Documented the implemented token persistence and expiry-aware authentication lifecycle in `docs/token-persistance.md`, retaining the original design decisions for reference.
+- Register the card's JavaScript module automatically and version its resource URL from the integration manifest so updates refresh the frontend asset.
+- Improve chart readability, m³ scale, date spacing, diagnostics layout and Sections-card sizing through the beta cycle.
+- Document card configuration, screenshots and JavaScript validation in `README.md` and `CONTRIBUTING.md`.
+- Document the already-implemented token persistence and expiry-aware authentication lifecycle in `docs/token-persistance.md`, retaining the original design as a historical reference.
+- Bump the integration version to `1.0.0`.
+
+### Fixed
+
+- Correctly interpret Recorder timestamps provided as Unix seconds (numbers or strings) or milliseconds, preventing incorrect dates in the consumption chart.
+- Preserve real zero-consumption days as zero rather than treating them as missing or interpolating their values.
+- Correct Lovelace resource versioning on integration upgrades and improve the card's rendering in Sections dashboards.
+- Make chart tooltips appear immediately on interaction instead of requiring a prolonged hover.
 
 ### Removed
 
 - Obsolete `lovelace_examples/water_dashboard.yaml` example, superseded by the bundled Lovelace card.
-- Outdated beta-1 Lovelace test guide.
+- Outdated beta-1 Lovelace card test guide.
 
-### Fixed
+### Validation
 
-- Preserve genuine zero-consumption days in the chart without interpolation; display their actual values as reported by SAUR.
+- 254 Python tests and 5 JavaScript tests passed; Python coverage: **93.81%**.
+- GitHub Actions CI, HACS and hassfest checks passed on the final pull request ([PR #11](https://github.com/minimicro34/ha-sauron/pull/11)).
 
 ## [0.6.4](https://github.com/minimicro34/ha-sauron/compare/v0.6.3...v0.6.4) - 2026-10-21
 
