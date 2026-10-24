@@ -1,7 +1,7 @@
 {
   "domain": "sauron",
   "name": "SAURon",
-  "after_dependencies": ["recorder"],
+  "after_dependencies": ["recorder", "http"],
   "codeowners": [
     "@netnic0",
     "@minimicro34"
@@ -17,5 +17,5 @@
   "quality_scale": "bronze",
   "requirements": [],
   "single_config_entry": false,
-  "version": "0.6.4"
+  "version": "1.0.0"
 }

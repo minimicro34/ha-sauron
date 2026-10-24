@@ -1,4 +1,21 @@
-# Plan A — Token persistence & expiry-aware refresh for SAURon (v2)
+# Token persistence and expiry-aware refresh — SAURon
+
+> **Implementation status (October 2026): IMPLEMENTED — historical design reference (originally Plan A v2).**
+>
+> This document preserves the original Plan A v2 design and reviewer discussion. The token-persistence and expiry-aware refresh mechanisms are already implemented in SAURon's current code; the instructions below are **not pending work** and some pseudocode no longer matches the final implementation.
+>
+> **Current behavior verified in source:**
+> - `TokenCache` stores the bearer token, expiry, client ID and default section ID; it is persisted in the Home Assistant config entry and restored when still valid.
+> - The client refreshes tokens before their expected expiry (300-second margin), with an `asyncio.Lock` to prevent concurrent refreshes. When `expires_in` is absent or invalid, the fallback TTL is 3600 seconds.
+> - A 401/403 from a data endpoint triggers authentication and one retry. **Unlike the original §3.3 proposal**, a second rejection after successful authentication is treated as **transient**, not as proof of invalid credentials. This avoids unnecessary reauthentication prompts.
+> - Network failures and HTTP 5xx errors are classified as transient. The config-entry update listener ignores token-cache-only writes to prevent reload loops.
+> - The client logs authentication response keys and `expires_in` at DEBUG level, without logging the bearer token.
+>
+> **Source of truth:** `custom_components/sauron/api/client.py`, `custom_components/sauron/__init__.py`, `custom_components/sauron/const.py`, and the automated tests. Operational behavior should be read from those files, not copied from the original implementation snippets below.
+>
+> **Validation:** The v0.7.0 beta5 local check reported 254 passing Python tests, 5 passing JavaScript tests and 93.81% Python coverage. This is automated-test evidence, not a claim that every production authentication edge case has been observed.
+
+---
 
 > **Status:** v2 — integrates reviewer feedback (RC‑1…RC‑4 + nice‑to‑haves).
 > **Goal:** stop Home Assistant from regularly asking the user to re-enter login / password.

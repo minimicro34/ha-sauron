@@ -67,6 +67,15 @@ make test
 make clean
 ```
 
+The bundled Lovelace card also has JavaScript syntax and regression checks:
+
+```bash
+node --check custom_components/sauron/www/sauron-card.js
+node --test tests/js/sauron-card.test.cjs
+```
+
+Run these checks when changing the card or its visual editor. They complement `make check`, which covers Python quality and tests.
+
 Hassfest and HACS validation remain part of GitHub Actions.
 
 ---

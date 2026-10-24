@@ -49,6 +49,7 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 | Meter diameter | — | Meter diameter reported by SAUR |
 | Remote reading technology | — | SAUR remote-reading technology |
 
+- **Built-in Lovelace card** — responsive overview, 7/30/90-day consumption chart with instant tooltips, and expandable meter diagnostics.
 - **Energy Dashboard compatible** — automatic dated Recorder statistics provide historical daily water consumption; the `Estimated water index` remains available as a separate cumulative sensor.
 - **Automatic rebasing** — when SAUR publishes a new physical meter reading, it becomes the new baseline automatically.
 - **Historical reconstruction** — daily entries from each required month are accumulated after the physical reading date.
@@ -188,19 +189,55 @@ Entity IDs may differ depending on the language in which the entities were first
 
 ---
 
-## Lovelace dashboard example
+## SAURon Lovelace card
 
-A complete example is available in [`lovelace_examples/water_dashboard.yaml`](lovelace_examples/water_dashboard.yaml).
+SAURon includes a built-in Home Assistant dashboard card. No third-party Lovelace cards are required. The card discovers the integration's entities and uses the dated Recorder statistics for its consumption chart.
 
-It includes:
+Add a **Manual** card to your dashboard with:
 
-- daily, current week, month and year consumption;
-- 7-day and 30-day consumption graphs based on SAURon's dated Recorder statistics;
-- the estimated and physical meter indexes;
-- data freshness diagnostics;
-- physical meter metadata such as serial number, manufacturer, model, diameter and remote-reading technology.
+```yaml
+type: custom:sauron-card
+mode: detailed
+days: 7
+show_chart: true
+show_diagnostics: true
+```
 
-The example uses only built-in Home Assistant cards (Tile, Entities, Heading and Statistics Graph); no Mushroom, ApexCharts Card or card-mod installation is required. Replace the sample `sauron:daily_water_...` statistic ID with the ID shown under Developer Tools → Statistics for your SAURon entry.
+The card displays the latest published daily consumption, weekly/monthly/yearly totals, estimated and physical indexes, and an interactive consumption chart. Switch between **7, 30 and 90 days** directly from the card. Hover over a bar (or tap it on a touchscreen) to display the date and consumption immediately.
+
+The expandable **Information and diagnostics** panel groups data freshness, meter details, and remote-reading technology. The layout adapts to narrow mobile dashboards. The card can also be configured using Home Assistant's visual card editor.
+
+The chart reflects the daily values published by SAUR: reported zero-consumption days remain zero, and unavailable readings are not artificially interpolated.
+
+### Card options
+
+| Option | Default | Description |
+|---|---|---|
+| `mode` | `detailed` | `detailed` shows indexes and diagnostics; `compact` shows summary metrics and the chart |
+| `days` | `7` | Initial chart period: `7`, `30`, or `90` |
+| `show_chart` | `true` | Display the historical consumption chart |
+| `show_diagnostics` | `true` | Display the expandable diagnostics in detailed mode |
+| `entry_id` | Automatic | Optional Home Assistant config entry ID when multiple SAURon subscriptions exist |
+
+The card's frontend resource is registered automatically by the integration. Restart Home Assistant after installing or updating SAURon so the resource version is refreshed.
+
+### Screenshots
+
+**7-day overview**
+
+![SAURon card — 7-day consumption overview](docs/sauron-card-7-days.png)
+
+**30-day overview**
+
+![SAURon card — 30-day consumption overview](docs/sauron-card-30-days.png)
+
+**90-day overview**
+
+![SAURon card — 90-day consumption overview](docs/sauron-card-90-days.png)
+
+**Expanded diagnostics**
+
+![SAURon card — meter and data diagnostics](docs/sauron-card-diagnostics.png)
 
 ---
 

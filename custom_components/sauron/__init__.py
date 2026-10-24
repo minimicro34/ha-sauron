@@ -24,6 +24,7 @@ from .const import (
     TOKEN_REFRESH_MARGIN_S,
 )
 from .coordinator import SauronCoordinator
+from .frontend import async_register_card
 from .historical import (
     fetch_historical_preview,
     plan_historical_backfill,
@@ -599,6 +600,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             }),
             supports_response=SupportsResponse.ONLY,
         )
+
+    try:
+        await async_register_card(hass)
+    except Exception:
+        _LOGGER.exception("Could not register SAURon dashboard card")
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
