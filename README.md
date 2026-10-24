@@ -49,6 +49,7 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 | Meter diameter | — | Meter diameter reported by SAUR |
 | Remote reading technology | — | SAUR remote-reading technology |
 
+- **Built-in Lovelace card** — responsive overview, 7/30/90-day consumption chart with instant tooltips, and expandable meter diagnostics.
 - **Energy Dashboard compatible** — automatic dated Recorder statistics provide historical daily water consumption; the `Estimated water index` remains available as a separate cumulative sensor.
 - **Automatic rebasing** — when SAUR publishes a new physical meter reading, it becomes the new baseline automatically.
 - **Historical reconstruction** — daily entries from each required month are accumulated after the physical reading date.
@@ -202,9 +203,11 @@ show_chart: true
 show_diagnostics: true
 ```
 
-The card displays the latest daily consumption, weekly/monthly/yearly totals, estimated and physical indexes, and an interactive consumption chart. Switch between **7, 30 and 90 days** directly from the card. Hover over a bar (or tap it on a touchscreen) to display the date and consumption immediately.
+The card displays the latest published daily consumption, weekly/monthly/yearly totals, estimated and physical indexes, and an interactive consumption chart. Switch between **7, 30 and 90 days** directly from the card. Hover over a bar (or tap it on a touchscreen) to display the date and consumption immediately.
 
-The expandable **Information and diagnostics** panel groups data freshness, meter details, and remote-reading technology. The layout adapts to narrow mobile dashboards.
+The expandable **Information and diagnostics** panel groups data freshness, meter details, and remote-reading technology. The layout adapts to narrow mobile dashboards. The card can also be configured using Home Assistant's visual card editor.
+
+The chart reflects the daily values published by SAUR: reported zero-consumption days remain zero, and unavailable readings are not artificially interpolated.
 
 ### Card options
 
@@ -220,7 +223,21 @@ The card's frontend resource is registered automatically by the integration. Res
 
 ### Screenshots
 
-Screenshots of the overview, 7-day, 30-day and 90-day views, and the expanded diagnostics will be added before the v1.0.0 release.
+**7-day overview**
+
+![SAURon card — 7-day consumption overview](docs/sauron-card-7-days.png)
+
+**30-day overview**
+
+![SAURon card — 30-day consumption overview](docs/sauron-card-30-days.png)
+
+**90-day overview**
+
+![SAURon card — 90-day consumption overview](docs/sauron-card-90-days.png)
+
+**Expanded diagnostics**
+
+![SAURon card — meter and data diagnostics](docs/sauron-card-diagnostics.png)
 
 ---
 
