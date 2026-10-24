@@ -1,6 +1,6 @@
-# Plan A — Token persistence & expiry-aware refresh for SAURon (v2)
+# Token persistence and expiry-aware refresh — SAURon
 
-> **Implementation status (October 2026): IMPLEMENTED — historical design reference.**
+> **Implementation status (October 2026): IMPLEMENTED — historical design reference (originally Plan A v2).**
 >
 > This document preserves the original Plan A v2 design and reviewer discussion. The token-persistence and expiry-aware refresh mechanisms are already implemented in SAURon's current code; the instructions below are **not pending work** and some pseudocode no longer matches the final implementation.
 >
