@@ -107,7 +107,7 @@ def merge_daily_history(
 
 
 def build_ledger_statistics(
-    daily_values: dict[str, float], timezone: str
+    daily_values: dict[str, float], timezone: tzinfo
 ) -> list[dict[str, Any]]:
     """Rebuild the complete continuous Recorder series after a new reading."""
     if not daily_values:
