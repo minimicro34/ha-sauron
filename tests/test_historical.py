@@ -3,9 +3,9 @@
 import sys
 import types
 from datetime import UTC, date, timedelta
-from zoneinfo import ZoneInfo
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from zoneinfo import ZoneInfo
 
 import pytest
 
