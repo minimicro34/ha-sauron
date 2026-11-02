@@ -312,10 +312,10 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
     ):
         raise HomeAssistantError("Invalid repair marker; manual review required")
     try:
+        from homeassistant.util import dt as dt_util
+
         from .historical import plan_positive_baseline_repair
         from .statistics import build_ledger_statistics
-
-        from homeassistant.util import dt as dt_util
 
         zone = await dt_util.async_get_time_zone(hass.config.time_zone)
         history_start = date.fromisoformat(backup["start"])
