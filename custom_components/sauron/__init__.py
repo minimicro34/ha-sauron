@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.const import Platform
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import SauronApiClient, TokenCache
@@ -161,9 +162,7 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         raise HomeAssistantError(str(err)) from err
 
     statistic_id = f"{DOMAIN}:daily_water_{entry.entry_id.lower()}"
-    from zoneinfo import ZoneInfo
-
-    zone = ZoneInfo(hass.config.time_zone)
+    zone = await dt_util.async_get_time_zone(hass.config.time_zone)
     first_existing = date.fromisoformat(min(ledger))
     last_existing = date.fromisoformat(max(ledger))
     first_utc = datetime.combine(start, datetime_time.min, tzinfo=zone).astimezone(UTC)
@@ -207,7 +206,7 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
             ledger,
         )
         plan = plan_historical_backfill(
-            preview, ledger, normalized, hass.config.time_zone
+            preview, ledger, normalized, zone
         )
         if plan["historical_total_m3"] <= 0:
             raise ValueError("No positive historical consumption to import")
@@ -290,8 +289,6 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
     official Recorder adjustment, marks it pending, and requires a later
     read-only call to verify persistence. Never adjusts twice.
     """
-    from zoneinfo import ZoneInfo
-
     from homeassistant.components import recorder
     from homeassistant.components.recorder.statistics import statistics_during_period
     from homeassistant.exceptions import HomeAssistantError
@@ -317,7 +314,7 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
         from .historical import plan_positive_baseline_repair
         from .statistics import build_ledger_statistics
 
-        zone = ZoneInfo(hass.config.time_zone)
+        zone = await dt_util.async_get_time_zone(hass.config.time_zone)
         history_start = date.fromisoformat(backup["start"])
         history_end = date.fromisoformat(backup["end"])
         existing_start = date.fromisoformat(min(ledger))
@@ -353,7 +350,7 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
         ).astimezone(UTC)
         history = [row for row in rows if row["start"] < first_existing_utc]
         existing = [row for row in rows if row["start"] >= first_existing_utc]
-        expected = build_ledger_statistics(ledger, hass.config.time_zone)
+        expected = build_ledger_statistics(ledger, zone)
         if len(history) != (history_end - history_start).days + 1:
             raise ValueError("Recorder historical row count mismatch")
         if len(existing) != len(expected):
