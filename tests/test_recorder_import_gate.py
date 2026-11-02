@@ -1,13 +1,15 @@
 """Regression coverage for historical import and Recorder publication gating."""
 
-import sys
 from datetime import date
+
+import pytest
 from unittest.mock import patch
 
 from tests.test_recorder_publish import _coordinator, _recorder_modules
 
 
-def test_pending_import_does_not_publish_or_change_ledger():
+@pytest.mark.asyncio
+async def test_pending_import_does_not_publish_or_change_ledger():
     coordinator, entry, hass = _coordinator(
         ledger={"2026-10-11": 0.9},
         payload=[{"consumptions": [
@@ -20,7 +22,7 @@ def test_pending_import_does_not_publish_or_change_ledger():
     }
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 11), date(2026, 10, 12))
+        await coordinator._publish_dated_statistics(date(2026, 10, 11), date(2026, 10, 12))
     writer = modules["homeassistant.components.recorder.statistics"]
     writer.async_add_external_statistics.assert_not_called()
     hass.config_entries.async_update_entry.assert_not_called()
@@ -28,7 +30,7 @@ def test_pending_import_does_not_publish_or_change_ledger():
 
     entry.data["_historical_baseline_repair"]["status"] = "verified"
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 11), date(2026, 10, 12))
+        await coordinator._publish_dated_statistics(date(2026, 10, 11), date(2026, 10, 12))
     writer.async_add_external_statistics.assert_called_once()
     rows = writer.async_add_external_statistics.call_args.args[2]
     assert [row["state"] for row in rows] == [0.9, 0.2]
@@ -38,5 +40,5 @@ def test_pending_import_does_not_publish_or_change_ledger():
 
     entry.data.update(persisted)
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 11), date(2026, 10, 12))
+        await coordinator._publish_dated_statistics(date(2026, 10, 11), date(2026, 10, 12))
     writer.async_add_external_statistics.assert_called_once()
