@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.const import Platform
-from homeassistant.util import dt as dt_util
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import SauronApiClient, TokenCache
@@ -162,6 +161,8 @@ async def _async_import_historical(hass: HomeAssistant, call: Any) -> dict[str, 
         raise HomeAssistantError(str(err)) from err
 
     statistic_id = f"{DOMAIN}:daily_water_{entry.entry_id.lower()}"
+    from homeassistant.util import dt as dt_util
+
     zone = await dt_util.async_get_time_zone(hass.config.time_zone)
     first_existing = date.fromisoformat(min(ledger))
     last_existing = date.fromisoformat(max(ledger))
@@ -313,6 +314,8 @@ async def _async_repair_historical_baseline(hass: HomeAssistant, call: Any) -> d
     try:
         from .historical import plan_positive_baseline_repair
         from .statistics import build_ledger_statistics
+
+        from homeassistant.util import dt as dt_util
 
         zone = await dt_util.async_get_time_zone(hass.config.time_zone)
         history_start = date.fromisoformat(backup["start"])
