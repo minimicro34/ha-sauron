@@ -44,21 +44,23 @@ def _recorder_modules():
     }
 
 
-def test_recorder_empty_payload_does_not_write():
+@pytest.mark.asyncio
+async def test_recorder_empty_payload_does_not_write():
     coordinator, _, hass = _coordinator(payload=[{"consumptions": []}])
     with patch.dict(sys.modules, _recorder_modules()):
-        coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 11))
+        await coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 11))
     hass.config_entries.async_update_entry.assert_not_called()
 
 
-def test_recorder_import_persists_anchor_after_validation():
+@pytest.mark.asyncio
+async def test_recorder_import_persists_anchor_after_validation():
     payload = [{"consumptions": [
         {"rangeType": "Day", "startDate": "2026-10-11", "value": 0.9},
     ]}]
     coordinator, entry, hass = _coordinator(payload=payload)
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 11))
+        await coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 11))
     imported = modules["homeassistant.components.recorder.statistics"]
     imported.async_add_external_statistics.assert_called_once()
     args = imported.async_add_external_statistics.call_args.args
@@ -70,31 +72,34 @@ def test_recorder_import_persists_anchor_after_validation():
     assert saved_data["_dated_statistics_daily_ledger"] == {"2026-10-11": 0.9}
 
 
-def test_recorder_legacy_anchor_without_ledger_does_not_write():
+@pytest.mark.asyncio
+async def test_recorder_legacy_anchor_without_ledger_does_not_write():
     coordinator, _, hass = _coordinator(
         anchor="2026-10-09",
         payload=[{"consumptions": [{"rangeType": "Day", "startDate": "2026-10-11", "value": 0.9}]}],
     )
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 11))
+        await coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 11))
     recorder = modules["homeassistant.components.recorder.statistics"]
     recorder.async_add_external_statistics.assert_not_called()
     hass.config_entries.async_update_entry.assert_not_called()
 
 
-def test_recorder_incomplete_history_does_not_write_or_persist():
+@pytest.mark.asyncio
+async def test_recorder_incomplete_history_does_not_write_or_persist():
     coordinator, _, hass = _coordinator(
         payload=[{"consumptions": [{"rangeType": "Day", "startDate": "2026-10-12", "value": 0.9}]}],
     )
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 12))
+        await coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 12))
     modules["homeassistant.components.recorder.statistics"].async_add_external_statistics.assert_not_called()
     hass.config_entries.async_update_entry.assert_not_called()
 
 
-def test_recorder_continues_after_physical_reading() -> None:
+@pytest.mark.asyncio
+async def test_recorder_continues_after_physical_reading() -> None:
     coordinator, _, hass = _coordinator(
         ledger={"2026-10-11": 0.9, "2026-10-12": 0.2},
         payload=[{"consumptions": [
@@ -103,7 +108,7 @@ def test_recorder_continues_after_physical_reading() -> None:
     )
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 12), date(2026, 10, 13))
+        await coordinator._publish_dated_statistics(date(2026, 10, 12), date(2026, 10, 13))
     imported = modules["homeassistant.components.recorder.statistics"]
     imported.async_add_external_statistics.assert_called_once()
     rows = imported.async_add_external_statistics.call_args.args[2]
@@ -112,7 +117,8 @@ def test_recorder_continues_after_physical_reading() -> None:
     assert saved_data["_dated_statistics_daily_ledger"]["2026-10-13"] == 0.3
 
 
-def test_recorder_rejects_gap_between_readings() -> None:
+@pytest.mark.asyncio
+async def test_recorder_rejects_gap_between_readings() -> None:
     coordinator, _, hass = _coordinator(
         ledger={"2026-10-11": 0.9},
         payload=[{"consumptions": [
@@ -121,7 +127,7 @@ def test_recorder_rejects_gap_between_readings() -> None:
     )
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 14), date(2026, 10, 15))
+        await coordinator._publish_dated_statistics(date(2026, 10, 14), date(2026, 10, 15))
     modules["homeassistant.components.recorder.statistics"].async_add_external_statistics.assert_not_called()
     hass.config_entries.async_update_entry.assert_not_called()
 
@@ -147,7 +153,7 @@ async def test_delayed_days_bridge_new_physical_reading() -> None:
     assert coordinator._client.async_get_monthly.await_count == 2
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 2), date(2026, 10, 3))
+        await coordinator._publish_dated_statistics(date(2026, 10, 2), date(2026, 10, 3))
     imported = modules["homeassistant.components.recorder.statistics"]
     rows = imported.async_add_external_statistics.call_args.args[2]
     assert [row["sum"] for row in rows] == [0.4, 0.9, 1.1, 1.4]
@@ -169,13 +175,14 @@ async def test_failed_backfill_preserves_existing_ledger() -> None:
     assert coordinator._monthly_index_payloads is None
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 2), date(2026, 10, 3))
+        await coordinator._publish_dated_statistics(date(2026, 10, 2), date(2026, 10, 3))
     modules["homeassistant.components.recorder.statistics"].async_add_external_statistics.assert_not_called()
     hass.config_entries.async_update_entry.assert_not_called()
     assert entry.data["_dated_statistics_daily_ledger"] == {"2026-09-30": 0.5}
 
 
-def test_unchanged_ledger_skips_recorder_import() -> None:
+@pytest.mark.asyncio
+async def test_unchanged_ledger_skips_recorder_import() -> None:
     coordinator, _, hass = _coordinator(
         ledger={"2026-10-11": 0.9, "2026-10-12": 0.2},
         payload=[{"consumptions": [
@@ -185,13 +192,14 @@ def test_unchanged_ledger_skips_recorder_import() -> None:
     )
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 12))
+        await coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 12))
     recorder = modules["homeassistant.components.recorder.statistics"]
     recorder.async_add_external_statistics.assert_not_called()
     hass.config_entries.async_update_entry.assert_not_called()
 
 
-def test_corrected_day_reimports_complete_cumulative_series() -> None:
+@pytest.mark.asyncio
+async def test_corrected_day_reimports_complete_cumulative_series() -> None:
     coordinator, _, hass = _coordinator(
         ledger={"2026-10-11": 0.9, "2026-10-12": 0.2},
         payload=[{"consumptions": [
@@ -201,7 +209,7 @@ def test_corrected_day_reimports_complete_cumulative_series() -> None:
     )
     modules = _recorder_modules()
     with patch.dict(sys.modules, modules):
-        coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 12))
+        await coordinator._publish_dated_statistics(date(2026, 10, 10), date(2026, 10, 12))
     recorder = modules["homeassistant.components.recorder.statistics"]
     recorder.async_add_external_statistics.assert_called_once()
     rows = recorder.async_add_external_statistics.call_args.args[2]
