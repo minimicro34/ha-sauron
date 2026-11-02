@@ -10,7 +10,6 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.util import dt as dt_util
 from homeassistant.helpers.issue_registry import (
     IssueSeverity,
     async_create_issue,
@@ -345,6 +344,8 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             )
             if not ledger or ledger == existing:
                 return
+            from homeassistant.util import dt as dt_util
+
             zone = await dt_util.async_get_time_zone(self.hass.config.time_zone)
             rows = build_ledger_statistics(ledger, zone)
             if not rows:
