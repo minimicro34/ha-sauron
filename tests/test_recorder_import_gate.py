@@ -1,9 +1,10 @@
 """Regression coverage for historical import and Recorder publication gating."""
 
+import sys
 from datetime import date
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch
 
 from tests.test_recorder_publish import _coordinator, _recorder_modules
 
