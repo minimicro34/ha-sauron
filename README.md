@@ -321,6 +321,4 @@ The estimated cumulative water index, updated dashboard, documentation and relat
 
 [GPL-3.0](LICENSE) — © 2026 Nicolas Diguet and Nicolas Chantrein.
 
-This fork is distributed under GPL-3.0. It incorporates code originally
-licensed under MIT by Nicolas Diguet (@netnic0); the original MIT license
-and copyright notices are preserved in [LICENSE-MIT](LICENSE-MIT).
+SAURon is maintained and distributed under GPL-3.0. It builds upon the original integration developed by Nicolas Diguet (@netnic0); the original MIT license and copyright notices are preserved in [LICENSE-MIT](LICENSE-MIT).
