@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from itertools import pairwise
 from typing import Any
-from zoneinfo import ZoneInfo
 
 
 def build_daily_statistics(
     payloads: list[dict[str, Any]],
     reading_date: date,
     through_date: date,
-    timezone: str,
+    timezone: tzinfo,
     *,
     initial_sum: float = 0.0,
 ) -> list[dict[str, Any]]:
@@ -50,7 +49,6 @@ def build_daily_statistics(
         ):
             raise ValueError("Incomplete SAUR daily history: missing dates")
 
-    tz = ZoneInfo(timezone)
     if initial_sum < 0 or not float("-inf") < initial_sum < float("inf"):
         raise ValueError("Invalid initial cumulative sum")
     total = initial_sum
@@ -59,7 +57,7 @@ def build_daily_statistics(
         total = round(total + values[day], 6)
         rows.append(
             {
-                "start": datetime.combine(day, time(hour=23), tzinfo=tz).astimezone(UTC),
+                "start": datetime.combine(day, time(hour=23), tzinfo=timezone).astimezone(UTC),
                 "state": round(values[day], 6),
                 "sum": total,
             }
@@ -79,7 +77,7 @@ def merge_daily_history(
     Existing values are only changed if SAUR supplies a corrected day again.
     """
     if not existing:
-        rows = build_daily_statistics(payloads, reading_date, through_date, "UTC")
+        rows = build_daily_statistics(payloads, reading_date, through_date, UTC)
         return {row["start"].date().isoformat(): row["state"] for row in rows}
 
     last = max(date.fromisoformat(key) for key in existing)
