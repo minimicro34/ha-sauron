@@ -2,13 +2,32 @@
 
 from __future__ import annotations
 
+import sys
+import types
 from datetime import UTC, date, datetime
+from zoneinfo import ZoneInfo
 from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 
 from custom_components.sauron.api.models import MeterInfo, MeterReading, SauronData
+
+
+@pytest.fixture(autouse=True)
+def fake_async_timezone(monkeypatch):
+    """Provide HA's async timezone resolver for isolated unit tests."""
+    util = types.ModuleType("homeassistant.util")
+    dt = types.ModuleType("homeassistant.util.dt")
+
+    async def async_get_time_zone(name):
+        return ZoneInfo(name)
+
+    dt.async_get_time_zone = async_get_time_zone
+    util.dt = dt
+    monkeypatch.setitem(sys.modules, "homeassistant.util", util)
+    monkeypatch.setitem(sys.modules, "homeassistant.util.dt", dt)
+
 
 
 @pytest.fixture
