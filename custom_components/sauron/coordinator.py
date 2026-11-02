@@ -185,7 +185,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         await self._async_refresh_recorder_history(
             subscription_id, data.latest_reading.reading_date, yesterday
         )
-        self._publish_dated_statistics(data.latest_reading.reading_date, yesterday)
+        await self._publish_dated_statistics(data.latest_reading.reading_date, yesterday)
 
         data_age_h = _data_age_hours(enriched.daily_date, now)
         issue_id = f"{ISSUE_STALE_DATA}_{self.config_entry.entry_id}"
@@ -311,7 +311,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             return
         self._monthly_index_payloads = payloads
 
-    def _publish_dated_statistics(self, reading_date: date, through_date: date) -> None:
+    async def _publish_dated_statistics(self, reading_date: date, through_date: date) -> None:
         """Queue backdated Recorder rows, without touching existing index entities."""
         if not self.hass.is_running or self._monthly_index_payloads is None:
             return
@@ -344,7 +344,10 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             )
             if not ledger or ledger == existing:
                 return
-            rows = build_ledger_statistics(ledger, self.hass.config.time_zone)
+            from homeassistant.util import dt as dt_util
+
+            zone = await dt_util.async_get_time_zone(self.hass.config.time_zone)
+            rows = build_ledger_statistics(ledger, zone)
             if not rows:
                 return
             repair = self.config_entry.data.get("_historical_baseline_repair")

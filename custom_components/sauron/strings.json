@@ -39,13 +39,11 @@
         "title": "SAURon options",
         "data": {
           "scan_interval_h": "Polling interval (hours)",
-          "stale_data_threshold_h": "Stale data alert threshold (hours)",
-          "enable_dated_statistics": "Enable experimental dated Recorder statistics"
+          "stale_data_threshold_h": "Stale data alert threshold (hours)"
         },
         "data_description": {
           "scan_interval_h": "How often to query the SAUR API. SAUR usually publishes daily data with a delay, so values below 4h are rarely useful.",
-          "stale_data_threshold_h": "Raise a Home Assistant alert if the latest published daily consumption is older than this many hours.",
-          "enable_dated_statistics": "Write reconstructed daily water history to Recorder. Experimental: missing SAUR days or a new physical meter reading will pause imports."
+          "stale_data_threshold_h": "Raise a Home Assistant alert if the latest published daily consumption is older than this many hours."
         }
       }
     }

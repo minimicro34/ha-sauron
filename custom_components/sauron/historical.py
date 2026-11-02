@@ -9,11 +9,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from itertools import pairwise
 from math import isclose, isfinite
 from typing import TYPE_CHECKING, Any
-from zoneinfo import ZoneInfo
 
 from .api.exceptions import SauronTransientError
 from .statistics import build_ledger_statistics
@@ -205,7 +204,7 @@ def plan_historical_backfill(
     preview: HistoricalPreview,
     ledger: dict[str, float],
     recorder_rows: list[dict[str, Any]],
-    timezone: str,
+    timezone: tzinfo,
 ) -> dict[str, Any]:
     """Build a fail-closed backfill plan without writing to Recorder.
 
@@ -238,7 +237,6 @@ def plan_historical_backfill(
                 raise ValueError(f"Recorder {key} differs from the existing ledger")
 
     total_history = round(sum(preview.values.values()), 6)
-    zone = ZoneInfo(timezone)
     cumulative = 0.0
     historical_rows: list[dict[str, Any]] = []
     for day_text, volume in sorted(preview.values.items()):
@@ -246,7 +244,7 @@ def plan_historical_backfill(
         cumulative = round(cumulative + volume, 6)
         historical_rows.append(
             {
-                "start": datetime.combine(day, time(23), tzinfo=zone).astimezone(UTC),
+                "start": datetime.combine(day, time(23), tzinfo=timezone).astimezone(UTC),
                 "state": round(volume, 6),
                 "sum": cumulative,
             }
