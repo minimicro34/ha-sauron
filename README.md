@@ -6,7 +6,7 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/minimicro34/ha-sauron)](https://github.com/minimicro34/ha-sauron/releases)
 [![Validate](https://github.com/minimicro34/ha-sauron/actions/workflows/validate.yml/badge.svg)](https://github.com/minimicro34/ha-sauron/actions/workflows/validate.yml)
-[![HACS](https://img.shields.io/badge/HACS-Custom-blue.svg)](https://hacs.xyz/)
+[![HACS](https://img.shields.io/badge/HACS-Default-blue.svg)](https://hacs.xyz/)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.12%2B-41BDF5.svg)](https://www.home-assistant.io/)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-☕-FFDD00?logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/minimicro34)
 [![License](https://img.shields.io/github/license/minimicro34/ha-sauron)](LICENSE)
@@ -75,11 +75,16 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 
 ### Via HACS (recommended)
 
-1. Open HACS in Home Assistant.
-2. Open **⋮ → Custom repositories**.
-3. Add `https://github.com/minimicro34/ha-sauron` as an **Integration** repository.
-4. Search for **SAURon** and install it.
-5. Restart Home Assistant.
+1. Open **HACS** in Home Assistant.
+2. Search for **SAURon** in the integration catalog.
+3. Select **SAURon** and install it.
+4. Restart Home Assistant.
+
+If SAURon does not appear in the HACS catalog yet, you can add it manually as a custom repository:
+
+1. In HACS, open **⋮ → Custom repositories**.
+2. Add `https://github.com/minimicro34/ha-sauron` as an **Integration** repository.
+3. Search for **SAURon**, install it, and restart Home Assistant.
 
 ### Manual
 
