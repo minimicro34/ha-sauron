@@ -2,7 +2,8 @@
 
 import sys
 import types
-from datetime import date, timedelta
+from datetime import UTC, date, timedelta
+from zoneinfo import ZoneInfo
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -323,14 +324,14 @@ def test_backfill_plan_preserves_existing_recorder_sums():
         date(2026, 5, 28),
     )
     ledger = {"2026-05-29": 0.2, "2026-05-30": 0.3}
-    existing = build_ledger_statistics(ledger, "Europe/Paris")
-    result = plan_historical_backfill(history, ledger, existing, "Europe/Paris")
+    existing = build_ledger_statistics(ledger, ZoneInfo("Europe/Paris"))
+    result = plan_historical_backfill(history, ledger, existing, ZoneInfo("Europe/Paris"))
     assert result["recorder_verified"] is True
     assert result["historical_days"] == 2
     assert result["existing_states_unchanged"] is True
     assert [row["sum"] for row in result["historical_rows"]] == [0.4, 1.0]
     assert [row["sum"] for row in result["rebased_existing_rows"]] == [1.2, 1.5]
-    assert existing == build_ledger_statistics(ledger, "Europe/Paris")
+    assert existing == build_ledger_statistics(ledger, ZoneInfo("Europe/Paris"))
 
 
 @pytest.mark.parametrize("tamper", ["missing", "sum", "state", "timestamp"])
@@ -346,7 +347,7 @@ def test_backfill_plan_rejects_recorder_discrepancies(tamper):
         date(2026, 5, 28),
     )
     ledger = {"2026-05-29": 0.2}
-    rows = build_ledger_statistics(ledger, "Europe/Paris")
+    rows = build_ledger_statistics(ledger, ZoneInfo("Europe/Paris"))
     if tamper == "missing":
         rows = []
     elif tamper == "timestamp":
@@ -354,7 +355,7 @@ def test_backfill_plan_rejects_recorder_discrepancies(tamper):
     else:
         rows[0][tamper] += 0.1
     with pytest.raises(ValueError, match="Recorder"):
-        plan_historical_backfill(history, ledger, rows, "Europe/Paris")
+        plan_historical_backfill(history, ledger, rows, ZoneInfo("Europe/Paris"))
 
 
 def test_backfill_plan_rejects_missing_historical_boundary():
@@ -369,7 +370,7 @@ def test_backfill_plan_rejects_missing_historical_boundary():
     ledger = {"2026-05-29": 0.2}
     with pytest.raises(ValueError, match="exactly one day"):
         plan_historical_backfill(
-            history, ledger, build_ledger_statistics(ledger, "UTC"), "UTC"
+            history, ledger, build_ledger_statistics(ledger, UTC), UTC
         )
 
 
@@ -412,7 +413,7 @@ def test_backfill_plan_rejects_existing_history_and_ledger_gaps():
     )
     ledger = {"2026-05-29": 0.2, "2026-05-31": 0.3}
     with pytest.raises(ValueError, match="missing days"):
-        plan_historical_backfill(history, ledger, [], "UTC")
+        plan_historical_backfill(history, ledger, [], UTC)
 
 
 def test_backfill_plan_rejects_incomplete_history():
@@ -427,7 +428,7 @@ def test_backfill_plan_rejects_incomplete_history():
     ledger = {"2026-05-29": 0.2}
     with pytest.raises(ValueError, match="Incomplete historical"):
         plan_historical_backfill(
-            history, ledger, build_ledger_statistics(ledger, "UTC"), "UTC"
+            history, ledger, build_ledger_statistics(ledger, UTC), UTC
         )
 
 
@@ -470,7 +471,7 @@ async def test_manual_import_queues_only_after_recorder_preflight(
     coordinator = object.__new__(SauronCoordinator)
     coordinator.config_entry = fake_entry
     coordinator._client = client
-    rows = build_ledger_statistics({"2026-05-29": 0.2}, "Europe/Paris")
+    rows = build_ledger_statistics({"2026-05-29": 0.2}, ZoneInfo("Europe/Paris"))
     recorded = [
         {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
         for row in rows
@@ -572,7 +573,7 @@ async def test_import_fail_closed_paths(monkeypatch, fake_entry, case, expected)
     statistic_id = f"sauron:daily_water_{fake_entry.entry_id.lower()}"
     recorded = [
         {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
-        for row in build_ledger_statistics(ledger, "Europe/Paris")
+        for row in build_ledger_statistics(ledger, ZoneInfo("Europe/Paris"))
     ]
     if case == "no_recorder":
         recorded = []
@@ -744,8 +745,8 @@ def test_positive_baseline_repair_preserves_daily_consumption():
         date(2026, 5, 27), date(2026, 5, 28),
     )
     ledger = {"2026-05-29": 0.2, "2026-05-30": 0.3}
-    existing = build_ledger_statistics(ledger, "Europe/Paris")
-    plan = plan_historical_backfill(preview, ledger, existing, "Europe/Paris")
+    existing = build_ledger_statistics(ledger, ZoneInfo("Europe/Paris"))
+    plan = plan_historical_backfill(preview, ledger, existing, ZoneInfo("Europe/Paris"))
     historical = [
         {**row, "sum": round(row["sum"] - plan["historical_total_m3"], 6)}
         for row in plan["historical_rows"]
@@ -765,8 +766,8 @@ def test_positive_baseline_repair_rejects_inconsistent_series():
     from custom_components.sauron.historical import plan_positive_baseline_repair
     from custom_components.sauron.statistics import build_ledger_statistics
 
-    historical = build_ledger_statistics({"2026-05-28": 0.4}, "UTC")
-    existing = build_ledger_statistics({"2026-05-29": 0.2}, "UTC")
+    historical = build_ledger_statistics({"2026-05-28": 0.4}, UTC)
+    existing = build_ledger_statistics({"2026-05-29": 0.2}, UTC)
     with pytest.raises(ValueError, match="Historical sum does not join"):
         plan_positive_baseline_repair(historical, existing)
 
@@ -789,11 +790,11 @@ async def test_repair_baseline_preview_and_queue(monkeypatch, fake_entry, confir
 
     historical = build_ledger_statistics({
         "2026-05-27": 0.4, "2026-05-28": 0.6
-    }, "Europe/Paris")
+    }, ZoneInfo("Europe/Paris"))
     for row in historical:
         row["sum"] -= 1.0
     ledger = {"2026-05-29": 0.2, "2026-05-30": 0.3}
-    existing = build_ledger_statistics(ledger, "Europe/Paris")
+    existing = build_ledger_statistics(ledger, ZoneInfo("Europe/Paris"))
     rows = [
         {"start": row["start"].timestamp(), "state": row["state"], "sum": row["sum"]}
         for row in [*historical, *existing]
@@ -897,10 +898,10 @@ async def test_positive_import_verification_waits_for_recorder(
     monkeypatch.setitem(sys.modules, "homeassistant.exceptions", errors)
 
     history = build_ledger_statistics(
-        {"2026-05-27": 0.4, "2026-05-28": 0.6}, "Europe/Paris"
+        {"2026-05-27": 0.4, "2026-05-28": 0.6}, ZoneInfo("Europe/Paris")
     )
     existing = build_ledger_statistics(
-        {"2026-05-29": 0.2, "2026-05-30": 0.3}, "Europe/Paris"
+        {"2026-05-29": 0.2, "2026-05-30": 0.3}, ZoneInfo("Europe/Paris")
     )
     if case != "incomplete":
         existing = [{**row, "sum": row["sum"] + 1.0} for row in existing]
@@ -1107,12 +1108,12 @@ def test_baseline_repair_rejects_corrupt_or_incomplete_recorder_rows(case, expec
     from custom_components.sauron.statistics import build_ledger_statistics
 
     historical = build_ledger_statistics(
-        {"2026-05-27": 0.4, "2026-05-28": 0.6}, "Europe/Paris"
+        {"2026-05-27": 0.4, "2026-05-28": 0.6}, ZoneInfo("Europe/Paris")
     )
     for row in historical:
         row["sum"] -= 1.0
     existing = build_ledger_statistics(
-        {"2026-05-29": 0.2, "2026-05-30": 0.3}, "Europe/Paris"
+        {"2026-05-29": 0.2, "2026-05-30": 0.3}, ZoneInfo("Europe/Paris")
     )
     if case == "missing_history":
         historical.clear()
