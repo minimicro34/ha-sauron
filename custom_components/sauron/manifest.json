@@ -1,7 +1,10 @@
 {
   "domain": "sauron",
   "name": "SAURon",
-  "after_dependencies": ["recorder", "http"],
+  "after_dependencies": [
+    "recorder",
+    "http"
+  ],
   "codeowners": [
     "@netnic0",
     "@minimicro34"
@@ -17,5 +20,8 @@
   "quality_scale": "bronze",
   "requirements": [],
   "single_config_entry": false,
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "categories": [
+    "water.meters_leak_detection"
+  ]
 }
