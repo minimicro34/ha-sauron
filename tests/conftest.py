@@ -5,9 +5,9 @@ from __future__ import annotations
 import sys
 import types
 from datetime import UTC, date, datetime
-from zoneinfo import ZoneInfo
 from typing import Any
 from unittest.mock import AsyncMock
+from zoneinfo import ZoneInfo
 
 import pytest
 
