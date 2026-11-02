@@ -5,6 +5,9 @@
     "recorder",
     "http"
   ],
+  "categories": [
+    "water.meters_leak_detection"
+  ],
   "codeowners": [
     "@netnic0",
     "@minimicro34"
@@ -20,8 +23,5 @@
   "quality_scale": "bronze",
   "requirements": [],
   "single_config_entry": false,
-  "version": "1.0.0",
-  "categories": [
-    "water.meters_leak_detection"
-  ]
+  "version": "1.0.0"
 }
