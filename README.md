@@ -54,6 +54,7 @@ It retrieves the consumption data exposed by the SAUR customer API and provides 
 - **Automatic rebasing** — when SAUR publishes a new physical meter reading, it becomes the new baseline automatically.
 - **Historical reconstruction** — daily entries from each required month are accumulated after the physical reading date.
 - **Transient-server retry** — monthly HTTP 500 responses are retried once after 2 seconds; persistent failures preserve the previous estimate and back off at 2, 5 and then 10 minutes.
+- **Startup logging grace period** — for the first 5 minutes after coordinator initialization, transient monthly API errors are logged at `DEBUG` instead of `WARNING`; retries remain active and recovery is reported at `INFO`. Persistent estimated-index failures after the grace period generate a warning.
 - **Last-value preservation** — a temporary historical-month failure keeps the last valid estimated index instead of replacing it with an incomplete value.
 - **Re-authentication flow** — credentials can be updated without removing the integration.
 - **Repair Issues** — Home Assistant warns when the latest published daily consumption becomes stale.
@@ -127,7 +128,7 @@ For example, if SAUR reports a physical reading of `315.000 m³` on May 28, SAUR
 
 When a later technician reading is published, SAURon automatically discards the previous reconstruction baseline and starts again from the new physical reading. The reading day itself is excluded from the accumulated consumption to avoid double counting.
 
-If a required historical monthly request returns HTTP 500, SAURon retries it once after 2 seconds. A successful retry restores the normal flow; if the request still fails, SAURon keeps the last valid estimated index and refreshes after 2 minutes, then 5 minutes, then every 10 minutes until recovery. The first HTTP 500 is logged at DEBUG, successful recovery at INFO and persistent failure at WARNING. Normal polling is restored automatically after recovery.
+If a required historical monthly request returns HTTP 500, SAURon retries it once after 2 seconds. A successful retry restores the normal flow; if the request still fails, SAURon keeps the last valid estimated index and refreshes after 2 minutes, then 5 minutes, then every 10 minutes until recovery. The first HTTP 500 is logged at `DEBUG`. During the first 5 minutes after coordinator initialization, transient monthly failures are also logged at `DEBUG` to avoid noisy startup warnings. Persistent estimated-index failures after that grace period generate a `WARNING`, while successful recovery is logged at `INFO`. Normal polling is restored automatically after recovery.
 
 ---
 
