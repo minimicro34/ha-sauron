@@ -112,7 +112,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             raise ConfigEntryAuthFailed from err
         except SauronTransientError as err:
             _LOGGER.log(
-                logging.DEBUG if datetime.now(UTC) < self._startup_grace_until else logging.WARNING,
+                logging.DEBUG if datetime.now(UTC) < self._startup_grace_until or self._estimated_index_warning_emitted else logging.WARNING,
                 "SAUR monthly transient error for %s: %s — skipping enrichment",
                 subscription_id,
                 err,
