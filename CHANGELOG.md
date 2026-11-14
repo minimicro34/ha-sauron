@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4](https://github.com/minimicro34/ha-sauron/compare/v1.0.3...v1.0.4) - 2026-11-15
+
+### Improved
+
+- Introduced a five-minute startup grace period for transient SAUR monthly API failures, reducing unnecessary warnings immediately after Home Assistant starts.
+- Log transient monthly failures at `DEBUG` during the grace period and avoid duplicate warnings after startup.
+- Keep the existing 2/5/10-minute retry backoff and `INFO` recovery messages without changing water consumption calculations or Recorder statistics.
+
+### Validation
+
+- Python test coverage: **93.50%**, above the enforced **90%** minimum.
+- Python quality checks, HACS validation and hassfest passed in GitHub Actions.
+
+## [1.0.3](https://github.com/minimicro34/ha-sauron/compare/v1.0.2...v1.0.3) - 2026-11-02
+
+### Changed
+
+- Prioritize installation through the default HACS catalog in the README, retaining custom repository instructions as a fallback.
+- Update the HACS badge to reflect default catalog inclusion.
+
+## [1.0.2](https://github.com/minimicro34/ha-sauron/compare/v1.0.1...v1.0.2) - 2026-11-02
+
+### Fixed
+
+- Resolve Home Assistant event-loop blocking during timezone resolution by using the asynchronous timezone helper.
+- Synchronize English translations with integration strings and add a translation consistency regression test.
+- Align the manifest with HACS category requirements and hassfest key ordering.
+
+## [1.0.1](https://github.com/minimicro34/ha-sauron/compare/v1.0.0...v1.0.1) - 2026-11-02
+
+### Changed
+
+- Prepare the integration for inclusion in the default HACS catalog.
+
 ## [1.0.0](https://github.com/minimicro34/ha-sauron/compare/v0.6.4...v1.0.0) - 2026-10-24
 
 ### Added
