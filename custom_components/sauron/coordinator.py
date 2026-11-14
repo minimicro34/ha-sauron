@@ -32,6 +32,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 _ESTIMATED_INDEX_RETRY_MINUTES = (2, 5, 10)
+_STARTUP_GRACE_PERIOD = timedelta(minutes=5)
 
 
 class SauronCoordinator(DataUpdateCoordinator[SauronData]):
@@ -53,6 +54,8 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self._client = client
         self._normal_update_interval = normal_interval
         self._estimated_index_failures = 0
+        self._startup_grace_until = datetime.now(UTC) + _STARTUP_GRACE_PERIOD
+        self._estimated_index_warning_emitted = False
         self._monthly_index_payloads: list[dict[str, Any]] | None = None
         self._stale_threshold_h = entry.options.get(
             OPT_STALE_DATA_THRESHOLD_H, DEFAULT_STALE_DATA_THRESHOLD_H
@@ -108,7 +111,8 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         except SauronAuthError as err:
             raise ConfigEntryAuthFailed from err
         except SauronTransientError as err:
-            _LOGGER.warning(
+            _LOGGER.log(
+                logging.DEBUG if datetime.now(UTC) < self._startup_grace_until else logging.WARNING,
                 "SAUR monthly transient error for %s: %s — skipping enrichment",
                 subscription_id,
                 err,
@@ -402,26 +406,26 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         retry_minutes = _ESTIMATED_INDEX_RETRY_MINUTES[retry_index]
         self.update_interval = timedelta(minutes=retry_minutes)
         previous = self._previous_estimated_index()
-        if self._estimated_index_failures == 1:
+        if datetime.now(UTC) < self._startup_grace_until:
+            _LOGGER.debug(
+                "SAUR monthly data %04d-%02d temporarily unavailable for %s "
+                "(startup grace period, attempt %d): %s. Retrying in %d minutes",
+                year, month, subscription_id, self._estimated_index_failures,
+                err, retry_minutes,
+            )
+        elif not self._estimated_index_warning_emitted:
+            self._estimated_index_warning_emitted = True
             _LOGGER.warning(
                 "SAUR monthly data %04d-%02d temporarily unavailable for %s: %s. "
                 "Keeping previous estimated index; retrying in %d minutes",
-                year,
-                month,
-                subscription_id,
-                err,
-                retry_minutes,
+                year, month, subscription_id, err, retry_minutes,
             )
         else:
             _LOGGER.debug(
                 "SAUR monthly data %04d-%02d still unavailable for %s (attempt %d): %s. "
                 "Retrying in %d minutes",
-                year,
-                month,
-                subscription_id,
-                self._estimated_index_failures,
-                err,
-                retry_minutes,
+                year, month, subscription_id, self._estimated_index_failures,
+                err, retry_minutes,
             )
         return previous
 
@@ -436,6 +440,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                 "" if self._estimated_index_failures == 1 else "s",
             )
             self._estimated_index_failures = 0
+            self._estimated_index_warning_emitted = False
         self.update_interval = self._normal_update_interval
 
 
