@@ -80,7 +80,10 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         )
         try:
             saved = await self._monthly_cache_store.async_load()
-            if isinstance(saved, dict) and saved.get("subscription_id") == self.config_entry.data[CONF_SUBSCRIPTION_ID]:
+            if (
+                isinstance(saved, dict)
+                and saved.get("subscription_id") == self.config_entry.data[CONF_SUBSCRIPTION_ID]
+            ):
                 months = saved.get("months", {})
                 if isinstance(months, dict):
                     for month_key, payload in months.items():
@@ -88,8 +91,12 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                             year_str, month_str = month_key.split("-")
                             year, month = int(year_str), int(month_str)
                             date(year, month, 1)
-                            if isinstance(payload, dict) and isinstance(payload.get("consumptions"), list):
-                                self._monthly_cache[(saved["subscription_id"], year, month)] = payload
+                            if (
+                                isinstance(payload, dict)
+                                and isinstance(payload.get("consumptions"), list)
+                            ):
+                                key = (saved["subscription_id"], year, month)
+                                self._monthly_cache[key] = payload
                         except (ValueError, TypeError, AttributeError):
                             continue
         except (OSError, ValueError, TypeError) as err:
