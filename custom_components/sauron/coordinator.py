@@ -83,6 +83,8 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
     ) -> dict[str, Any]:
         """Reuse completed historical months, refreshing a rolling 35-day window."""
         key = (subscription_id, year, month)
+        if not hasattr(self, "_monthly_cache"):
+            self._monthly_cache = {}
         month_end = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)
         if month_end < datetime.now(UTC).date() - timedelta(days=35):
             if key in self._monthly_cache:
