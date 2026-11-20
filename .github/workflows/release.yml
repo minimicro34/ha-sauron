@@ -1,0 +1,133 @@
+name: Signed release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (v1.0.5)"
+        required: true
+        type: string
+      prerelease:
+        description: "Prerelease"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Verify without publishing"
+        type: boolean
+        default: true
+permissions:
+  contents: write
+concurrency:
+  group: sauron-signed-release
+  cancel-in-progress: false
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - run: python -m pip install -e . pytest pytest-asyncio pytest-cov ruff
+      - run: |
+          set -o pipefail
+          make check 2>&1 | tee quality.log
+      - uses: actions/upload-artifact@v6
+        with:
+          name: signed-release-quality
+          path: quality.log
+  release:
+    needs: quality
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.version }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v7
+        with:
+          name: signed-release-quality
+      - name: Validate release
+        env:
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] || exit 1
+          [[ "$RELEASE_TAG" != *-* || "$IS_PRERELEASE" == "true" ]] || exit 1
+          manifest="$(python -c 'import json; print(json.load(open("custom_components/sauron/manifest.json"))["version"])')"
+          [[ "$RELEASE_TAG" == "v$manifest" ]] || { echo "::error::Manifest version mismatch"; exit 1; }
+          [[ -n "$GPG_PRIVATE_KEY" && -n "$GPG_PASSPHRASE" ]] || { echo "::error::Missing GPG secrets"; exit 1; }
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null; then
+            echo "::error::Tag already exists"
+            exit 1
+          fi
+      - name: Sign and verify tag
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          fingerprint="$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10; exit}')"
+          [[ -n "$fingerprint" ]] || exit 1
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          git config user.name "GitHub Releases - minimicro34"
+          git config user.email "minimicro34@gmail.com"
+          git config user.signingkey "$fingerprint"
+          git config gpg.format openpgp
+          printf '%s' "$GPG_PASSPHRASE" > "$RUNNER_TEMP/passphrase"
+          chmod 600 "$RUNNER_TEMP/passphrase"
+          printf '#!/bin/bash\nexec gpg --batch --yes --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/passphrase" "$@"\n' > "$RUNNER_TEMP/gpg-sign"
+          chmod 700 "$RUNNER_TEMP/gpg-sign"
+          git config gpg.program "$RUNNER_TEMP/gpg-sign"
+          git tag -s "$RELEASE_TAG" -m "$RELEASE_TAG"
+          git tag -v "$RELEASE_TAG"
+      - name: Generate notes from changelog and CI
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+          tag = os.environ["RELEASE_TAG"]
+          version = tag[1:]
+          changelog = Path("CHANGELOG.md").read_text()
+          match = re.search(rf"(?ms)^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)", changelog)
+          if not match:
+              raise SystemExit("Missing changelog section")
+          notes = match.group(1).strip()
+          notes = re.sub(r"(?ms)^### (?:Validation|Tests)\s*\n.*?(?=^### |\Z)", "", notes).strip()
+          notes = re.sub(r"(?m)^---\s*$|^\*\*Full Changelog:\*\*.*$", "", notes).strip()
+          log = Path("quality.log").read_text()
+          tests = re.findall(r"(\d+) passed\b", log)
+          coverage = re.findall(r"Total coverage:\s*(\d+(?:\.\d+)?)%", log)
+          versions = re.findall(r"(?m)^## \[([^\]]+)\]", changelog)
+          idx = versions.index(version)
+          if not tests or not coverage or idx + 1 >= len(versions):
+              raise SystemExit("Missing verified metrics or previous version")
+          previous = versions[idx + 1]
+          notes += (f"\n\n### Validation\n\n- Python: {tests[-1]} tests passed; coverage {coverage[-1]}%.\n"
+                    "- Quality: make check passed.\n\n---\n\n"
+                    f"**Full Changelog:** https://github.com/minimicro34/ha-sauron/compare/v{previous}...{tag}\n")
+          Path("release-notes.md").write_text(notes)
+          PY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: signed-release-notes
+          path: release-notes.md
+      - name: Publish
+        if: inputs.dry_run == false
+        env:
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          git push origin "refs/tags/$RELEASE_TAG"
+          args=(--title "$RELEASE_TAG" --notes-file release-notes.md --verify-tag)
+          if [[ "$IS_PRERELEASE" == "true" ]]; then args+=(--prerelease); else args+=(--latest); fi
+          gh release create "$RELEASE_TAG" "${args[@]}"
+      - name: Simulation
+        if: inputs.dry_run == true
+        run: echo "Dry run successful: no tag pushed or release published." >> "$GITHUB_STEP_SUMMARY"
