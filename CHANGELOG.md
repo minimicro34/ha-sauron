@@ -11,11 +11,23 @@ Release validation metrics are generated from the actual GitHub Actions run by t
 
 ## [Unreleased]
 
+## [1.0.5](https://github.com/minimicro34/ha-sauron/compare/v1.0.4...v1.0.5) - 2026-11-20
+
 ### Added
 
-- Prepare a manually dispatched GPG-signed release workflow with a safe dry-run mode, signed-tag verification, and manifest-version checks.
-- Generate release validation metrics from the successful release workflow instead of copying test counts or coverage from the changelog.
-- Keep the horizontal separator before the Full Changelog comparison link in generated GitHub Release notes.
+- Persist historical monthly SAUR consumption responses in Home Assistant storage, scoped to each configuration entry and subscription.
+- Add regression tests for reuse of previously fetched historical months.
+
+### Improved
+
+- Avoid repeatedly querying historical monthly endpoints for months older than the 35-day correction window, reducing unnecessary API traffic and transient HTTP 500 errors.
+- Keep recent months refreshed to preserve late publication and correction handling, without changing the estimated water index or Recorder statistics.
+- Preserve the historical monthly cache across Home Assistant restarts.
+
+### Changed
+
+- Introduce manually triggered GPG-signed releases with dry-run verification and release validation generated from actual CI results.
+- Harmonize historical changelog categories while preserving attribution to the upstream SAURon project.
 
 ## [1.0.4](https://github.com/minimicro34/ha-sauron/compare/v1.0.3...v1.0.4) - 2026-11-15
 
