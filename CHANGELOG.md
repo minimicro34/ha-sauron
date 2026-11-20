@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Versions up to **0.4.1** originate from the upstream [netnic0/ha-sauron](https://github.com/netnic0/ha-sauron) project. The maintained fork's release history starts at **0.5.0**. Original upstream comparison and commit links are retained for attribution.
+
+Release validation metrics are generated from the actual GitHub Actions run by the signed release workflow; they are intentionally not maintained as a separate changelog section.
+
 ## [Unreleased]
 
 ### Added
@@ -20,11 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Introduced a five-minute startup grace period for transient SAUR monthly API failures, reducing unnecessary warnings immediately after Home Assistant starts.
 - Log transient monthly failures at `DEBUG` during the grace period and avoid duplicate warnings after startup.
 - Keep the existing 2/5/10-minute retry backoff and `INFO` recovery messages without changing water consumption calculations or Recorder statistics.
-
-### Validation
-
-- Python test coverage: **93.50%**, above the enforced **90%** minimum.
-- Python quality checks, HACS validation and hassfest passed in GitHub Actions.
 
 ## [1.0.3](https://github.com/minimicro34/ha-sauron/compare/v1.0.2...v1.0.3) - 2026-11-02
 
@@ -80,11 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Obsolete `lovelace_examples/water_dashboard.yaml` example, superseded by the bundled Lovelace card.
 - Outdated beta-1 Lovelace card test guide.
 
-### Validation
-
-- 254 Python tests and 5 JavaScript tests passed; Python coverage: **93.81%**.
-- GitHub Actions CI, HACS and hassfest checks passed on the final pull request ([PR #11](https://github.com/minimicro34/ha-sauron/pull/11)).
-
 ## [0.6.4](https://github.com/minimicro34/ha-sauron/compare/v0.6.3...v0.6.4) - 2026-10-21
 
 ### Fixed
@@ -97,12 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Distribute the maintained fork under GPL-3.0 while preserving the original MIT license and copyright notices in `LICENSE-MIT`.
 
-### Validation
-
-- Added three authentication recovery regression tests and updated the existing fresh-token rejection test.
-- Validated 247 passing tests with 93.57% coverage, plus Ruff, hassfest and HACS checks ([PR #10](https://github.com/minimicro34/ha-sauron/pull/10)).
-
-### Notes
+### Changed
 
 - No changes to Recorder statistics, historical imports or the 36-month audit limit.
 - Home Assistant 2026.12 reauthentication reload compatibility addressed; runtime validation remains recommended.
@@ -116,7 +105,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Read-only negative-baseline repair preview and an explicitly confirmed, idempotent Recorder cumulative adjustment.
 - Persistent repair status and verification of all historical and existing cumulative sums before marking a repair complete.
 - Expanded regression coverage for interrupted or partially applied imports, malformed or contradictory Recorder rows, invalid offsets, repeated verification, and safe publication resumption.
-- Release validation baseline: 243 passing tests, 93.57% coverage; Python quality, HACS and hassfest successful ([CI run #39435353943](https://github.com/minimicro34/ha-sauron/actions/runs/39435353943)).
 
 ### Fixed
 
