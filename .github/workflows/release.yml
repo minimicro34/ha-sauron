@@ -130,4 +130,5 @@ jobs:
           gh release create "$RELEASE_TAG" "${args[@]}"
       - name: Simulation
         if: inputs.dry_run == true
-        run: echo "Dry run successful: no tag pushed or release published." >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "Dry run successful: no tag pushed or release published." >> "$GITHUB_STEP_SUMMARY"
