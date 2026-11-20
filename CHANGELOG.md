@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Prepare a manually dispatched GPG-signed release workflow with a safe dry-run mode, signed-tag verification, and manifest-version checks.
+- Generate release validation metrics from the successful release workflow instead of copying test counts or coverage from the changelog.
+- Keep the horizontal separator before the Full Changelog comparison link in generated GitHub Release notes.
+
 ## [1.0.4](https://github.com/minimicro34/ha-sauron/compare/v1.0.3...v1.0.4) - 2026-11-15
 
 ### Improved
