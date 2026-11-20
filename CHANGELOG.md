@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Versions up to **0.4.1** originate from the upstream [netnic0/ha-sauron](https://github.com/netnic0/ha-sauron) project. The maintained fork's release history starts at **0.5.0**. Original upstream comparison and commit links are retained for attribution.
+
+Release validation metrics are generated from the actual GitHub Actions run by the signed release workflow; they are intentionally not maintained as a separate changelog section.
+
+## [Unreleased]
+
+### Added
+
+- Prepare a manually dispatched GPG-signed release workflow with a safe dry-run mode, signed-tag verification, and manifest-version checks.
+- Generate release validation metrics from the successful release workflow instead of copying test counts or coverage from the changelog.
+- Keep the horizontal separator before the Full Changelog comparison link in generated GitHub Release notes.
+
 ## [1.0.4](https://github.com/minimicro34/ha-sauron/compare/v1.0.3...v1.0.4) - 2026-11-15
 
 ### Improved
@@ -12,11 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Introduced a five-minute startup grace period for transient SAUR monthly API failures, reducing unnecessary warnings immediately after Home Assistant starts.
 - Log transient monthly failures at `DEBUG` during the grace period and avoid duplicate warnings after startup.
 - Keep the existing 2/5/10-minute retry backoff and `INFO` recovery messages without changing water consumption calculations or Recorder statistics.
-
-### Validation
-
-- Python test coverage: **93.50%**, above the enforced **90%** minimum.
-- Python quality checks, HACS validation and hassfest passed in GitHub Actions.
 
 ## [1.0.3](https://github.com/minimicro34/ha-sauron/compare/v1.0.2...v1.0.3) - 2026-11-02
 
@@ -72,11 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Obsolete `lovelace_examples/water_dashboard.yaml` example, superseded by the bundled Lovelace card.
 - Outdated beta-1 Lovelace card test guide.
 
-### Validation
-
-- 254 Python tests and 5 JavaScript tests passed; Python coverage: **93.81%**.
-- GitHub Actions CI, HACS and hassfest checks passed on the final pull request ([PR #11](https://github.com/minimicro34/ha-sauron/pull/11)).
-
 ## [0.6.4](https://github.com/minimicro34/ha-sauron/compare/v0.6.3...v0.6.4) - 2026-10-21
 
 ### Fixed
@@ -89,12 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Distribute the maintained fork under GPL-3.0 while preserving the original MIT license and copyright notices in `LICENSE-MIT`.
 
-### Tests
-
-- Added three authentication recovery regression tests and updated the existing fresh-token rejection test.
-- Validated 247 passing tests with 93.57% coverage, plus Ruff, hassfest and HACS checks ([PR #10](https://github.com/minimicro34/ha-sauron/pull/10)).
-
-### Notes
+### Changed
 
 - No changes to Recorder statistics, historical imports or the 36-month audit limit.
 - Home Assistant 2026.12 reauthentication reload compatibility addressed; runtime validation remains recommended.
@@ -108,7 +105,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Read-only negative-baseline repair preview and an explicitly confirmed, idempotent Recorder cumulative adjustment.
 - Persistent repair status and verification of all historical and existing cumulative sums before marking a repair complete.
 - Expanded regression coverage for interrupted or partially applied imports, malformed or contradictory Recorder rows, invalid offsets, repeated verification, and safe publication resumption.
-- Release validation baseline: 243 passing tests, 93.57% coverage; Python quality, HACS and hassfest successful ([CI run #39435353943](https://github.com/minimicro34/ha-sauron/actions/runs/39435353943)).
 
 ### Fixed
 
@@ -116,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve a verified positive cumulative baseline across later SAURon Recorder publications.
 - Pause Recorder publication while an earlier historical import awaits repair verification.
 
-### Known limitation
+### Known Limitations
 
 - First-time historical imports use a pending safety marker and require read-only Recorder verification before automatic publishing resumes. Existing negative-baseline beta imports can be repaired through the dedicated action.
 - A subsequent automatic SAUR publication after a verified baseline repair still needs field validation.
@@ -229,13 +225,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.1](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.4.0...ha-sauron-v0.4.1) (2026-06-17)
 
-### Bug Fixes
+### Fixed
 
 * **entity,lovelace:** expose meter attrs + fix ApexCharts fill ([#23](https://github.com/netnic0/ha-sauron/issues/23)) ([5e95f51](https://github.com/netnic0/ha-sauron/commit/5e95f51edeb26b70c42a04248688f976525029ff))
 
 ## [0.4.0](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.3.0...ha-sauron-v0.4.0) (2026-06-17)
 
-### Features
+### Added
 
 * **device:** enrich device info + water dashboard improvements ([2462bbd](https://github.com/netnic0/ha-sauron/commit/2462bbde21232394ed0cd2393d10e26930fe7fd6))
 * **device:** enrich DeviceInfo with meter hardware metadata from delivery_points ([502c5d9](https://github.com/netnic0/ha-sauron/commit/502c5d94c6ac1002a16295bf9d6296ab48e0145a))
@@ -243,41 +239,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.7...ha-sauron-v0.3.0) (2026-06-17)
 
-### Features
+### Added
 
 * **coordinator:** use monthly endpoint for daily/weekly/monthly sensors ([a1b1ce2](https://github.com/netnic0/ha-sauron/commit/a1b1ce2922bc7759a0474b95324f834ca93243cc))
 * **lovelace:** add water consumption dashboard blueprint ([5048521](https://github.com/netnic0/ha-sauron/commit/5048521bb7660b18c8d04eb7c0bcb2591e9ca0b2))
 
 ## [0.2.7](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.6...ha-sauron-v0.2.7) (2026-06-17)
 
-### Bug Fixes
+### Fixed
 
 * **integration:** address P0/P1 code review findings ([3b8b42c](https://github.com/netnic0/ha-sauron/commit/3b8b42cdda6765e7098f7d114d25776e5565c5ec))
 * **integration:** address P0/P1 code review findings ([88470d6](https://github.com/netnic0/ha-sauron/commit/88470d677d981a5d4686966b5d98e2b56565edcd))
 
 ## [0.2.6](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.5...ha-sauron-v0.2.6) (2026-06-17)
 
-### Bug Fixes
+### Fixed
 
 * **coordinator:** query J-2 for weekly data; take last non-zero day entry ([5debbe1](https://github.com/netnic0/ha-sauron/commit/5debbe1633c61c0306f56b7d60704bb774f20e34))
 * **coordinator:** query J-2 for weekly data; take last non-zero day entry ([ce6a5dd](https://github.com/netnic0/ha-sauron/commit/ce6a5dd3219a3402a0aa9ef1c1306e02fa880c45))
 
 ## [0.2.5](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.4...ha-sauron-v0.2.5) (2026-06-17)
 
-### Bug Fixes
+### Fixed
 
 * **sensor:** use TOTAL state_class for daily_liters ([fa09344](https://github.com/netnic0/ha-sauron/commit/fa093448cb3528c0ccafbffb6529e9060cd2af01))
 * **sensor:** use TOTAL state_class for daily_liters (device_class=WATER requires TOTAL or TOTAL_INCREASING) ([eb69be4](https://github.com/netnic0/ha-sauron/commit/eb69be40acd994ebd19a545bd06d15bc1cc47720))
 
 ## [0.2.4](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.3...ha-sauron-v0.2.4) (2026-06-16)
 
-### Bug Fixes
+### Fixed
 
 * **coordinator:** add debug log for weekly API response (diagnostic) ([49f0ddd](https://github.com/netnic0/ha-sauron/commit/49f0ddd7fd7f8b5b06522f22dc70c8f7f974bbdd))
 
 ## [0.2.3](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.2...ha-sauron-v0.2.3) (2026-06-16)
 
-### Bug Fixes
+### Fixed
 
 * **brand:** generate proper PNG assets from SAUR SVG + add icon.svg with water drop ([a6e7e19](https://github.com/netnic0/ha-sauron/commit/a6e7e198d9832b92e326336315311a679484d074))
 * **coordinator:** query J-1 for daily/weekly data (SAUR always lags by 1 day) ([969d501](https://github.com/netnic0/ha-sauron/commit/969d501203d6f5efc8cd25105645e04eba72592d))
@@ -285,27 +281,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.2](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.1...ha-sauron-v0.2.2) (2026-06-16)
 
-### Documentation
+### Changed
 
 * add MIT license, expand README, fix sensor regression ([6e298ce](https://github.com/netnic0/ha-sauron/commit/6e298ce3eaf90af76f38e2156424e30083727aca))
 * MIT license + expanded README + sensor date fix ([907d3e0](https://github.com/netnic0/ha-sauron/commit/907d3e01d3a9a595e67ac6a5a358aee53f3a024a))
 
 ## [0.2.1](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.2.0...ha-sauron-v0.2.1) (2026-06-16)
 
-### Bug Fixes
+### Fixed
 
 * **code-quality:** hotfix from post-v0.2.0 review ([d7756fd](https://github.com/netnic0/ha-sauron/commit/d7756fdeddbfc2ea83ceece8d445f6d8f00e5a07))
 * **code-quality:** hotfix from post-v0.2.0 review ([034b6fe](https://github.com/netnic0/ha-sauron/commit/034b6feef15aad068a8e5eae4f3c72408840a741))
 
 ## [0.2.0](https://github.com/netnic0/ha-sauron/compare/ha-sauron-v0.1.0...ha-sauron-v0.2.0) (2026-06-16)
 
-### Features
+### Added
 
 * **coordinator:** compute daily_liters from consecutive index readings ([b2843bd](https://github.com/netnic0/ha-sauron/commit/b2843bdbe13651bf2f792ce9c970336c14420de3))
 * **pr1:** align API client with real SAUR field names + complete i18n + tests ([485827e](https://github.com/netnic0/ha-sauron/commit/485827edf061834053363f0430ff7448da0052f3))
 * **pr1:** align SAUR API client with real field names, complete i18n, add tests ([168fd36](https://github.com/netnic0/ha-sauron/commit/168fd36e7c461ecbefb24ee4b2c9ea9bdc612502))
 * **scaffold:** initial SAURon integration skeleton ([c354e1f](https://github.com/netnic0/ha-sauron/commit/c354e1f1f52218609a63a8cd2e2a6f986f5db143))
 
-### Bug Fixes
+### Fixed
 
 * **ci:** sort manifest keys for hassfest + add brand PNG assets for HACS ([1b38c72](https://github.com/netnic0/ha-sauron/commit/1b38c72724d97ac3c2a92061aa9ea7171adc43af))
