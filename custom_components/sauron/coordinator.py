@@ -58,6 +58,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self._estimated_index_warning_emitted = False
         self._monthly_index_payloads: list[dict[str, Any]] | None = None
         self._monthly_cache: dict[tuple[str, int, int], dict[str, Any]] = {}
+        self._monthly_cache_store = None
         self._stale_threshold_h = entry.options.get(
             OPT_STALE_DATA_THRESHOLD_H, DEFAULT_STALE_DATA_THRESHOLD_H
         )
@@ -71,6 +72,28 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
 
     async def async_setup(self) -> None:
         """Fetch static meter metadata once at integration setup."""
+        # The cache is independent from the Recorder daily ledger.
+        from homeassistant.helpers.storage import Store
+
+        self._monthly_cache_store = Store(
+            self.hass, 1, f"{DOMAIN}_monthly_cache_{self.config_entry.entry_id}"
+        )
+        try:
+            saved = await self._monthly_cache_store.async_load()
+            if isinstance(saved, dict) and saved.get("subscription_id") == self.config_entry.data[CONF_SUBSCRIPTION_ID]:
+                months = saved.get("months", {})
+                if isinstance(months, dict):
+                    for month_key, payload in months.items():
+                        try:
+                            year_str, month_str = month_key.split("-")
+                            year, month = int(year_str), int(month_str)
+                            date(year, month, 1)
+                            if isinstance(payload, dict) and isinstance(payload.get("consumptions"), list):
+                                self._monthly_cache[(saved["subscription_id"], year, month)] = payload
+                        except (ValueError, TypeError, AttributeError):
+                            continue
+        except (OSError, ValueError, TypeError) as err:
+            _LOGGER.warning("SAUR monthly cache could not be loaded: %s", err)
         subscription_id: str = self.config_entry.data[CONF_SUBSCRIPTION_ID]
         try:
             raw_points = await self._client.async_get_delivery_points(subscription_id)
@@ -90,7 +113,21 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             if key in self._monthly_cache:
                 return self._monthly_cache[key]
             payload = await self._client.async_get_monthly(subscription_id, year, month)
-            self._monthly_cache[key] = payload
+            if isinstance(payload, dict) and isinstance(payload.get("consumptions"), list):
+                self._monthly_cache[key] = payload
+                store = getattr(self, "_monthly_cache_store", None)
+                if store is not None:
+                    try:
+                        await store.async_save({
+                            "subscription_id": subscription_id,
+                            "months": {
+                                f"{y:04d}-{m:02d}": value
+                                for (sub, y, m), value in self._monthly_cache.items()
+                                if sub == subscription_id
+                            },
+                        })
+                    except (OSError, ValueError, TypeError) as err:
+                        _LOGGER.warning("SAUR monthly cache could not be saved: %s", err)
             return payload
         return await self._client.async_get_monthly(subscription_id, year, month)
 
