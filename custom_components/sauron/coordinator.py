@@ -57,6 +57,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         self._startup_grace_until = datetime.now(UTC) + _STARTUP_GRACE_PERIOD
         self._estimated_index_warning_emitted = False
         self._monthly_index_payloads: list[dict[str, Any]] | None = None
+        self._monthly_cache: dict[tuple[str, int, int], dict[str, Any]] = {}
         self._stale_threshold_h = entry.options.get(
             OPT_STALE_DATA_THRESHOLD_H, DEFAULT_STALE_DATA_THRESHOLD_H
         )
@@ -76,6 +77,20 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             self._meter_info = _parse_delivery_points(subscription_id, raw_points)
         except Exception as err:
             _LOGGER.warning("Could not fetch delivery points for %s: %s", subscription_id, err)
+
+    async def _async_monthly_cached(
+        self, subscription_id: str, year: int, month: int
+    ) -> dict[str, Any]:
+        """Reuse completed historical months, refreshing a rolling 35-day window."""
+        key = (subscription_id, year, month)
+        month_end = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)
+        if month_end < datetime.now(UTC).date() - timedelta(days=35):
+            if key in self._monthly_cache:
+                return self._monthly_cache[key]
+            payload = await self._client.async_get_monthly(subscription_id, year, month)
+            self._monthly_cache[key] = payload
+            return payload
+        return await self._client.async_get_monthly(subscription_id, year, month)
 
     async def _async_update_data(self) -> SauronData:
         """Fetch latest data from the SAUR API."""
@@ -102,10 +117,10 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
 
         raw_monthly: dict[str, Any] = {}
         try:
-            raw_monthly = await self._client.async_get_monthly(subscription_id, now.year, now.month)
+            raw_monthly = await self._async_monthly_cached(subscription_id, now.year, now.month)
             if not _has_nonzero_day(raw_monthly):
                 prev = now.replace(day=1) - timedelta(days=1)
-                raw_monthly = await self._client.async_get_monthly(
+                raw_monthly = await self._async_monthly_cached(
                     subscription_id, prev.year, prev.month
                 )
         except SauronAuthError as err:
@@ -138,7 +153,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         for year, month in _iter_months(previous_week_start, previous_week_end):
             try:
                 previous_week_payloads.append(
-                    await self._client.async_get_monthly(subscription_id, year, month)
+                    await self._async_monthly_cached(subscription_id, year, month)
                 )
             except SauronAuthError as err:
                 raise ConfigEntryAuthFailed from err
@@ -227,7 +242,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
         monthly_payloads: list[dict[str, Any]] = []
         for year, month in _iter_months(reading.reading_date, through_date):
             try:
-                payload = await self._client.async_get_monthly(subscription_id, year, month)
+                payload = await self._async_monthly_cached(subscription_id, year, month)
             except SauronAuthError as err:
                 raise ConfigEntryAuthFailed from err
             except SauronTransientError as err:
@@ -241,7 +256,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
                 )
                 await asyncio.sleep(2)
                 try:
-                    payload = await self._client.async_get_monthly(
+                    payload = await self._async_monthly_cached(
                         subscription_id, year, month
                     )
                 except SauronAuthError as retry_err:
@@ -310,7 +325,7 @@ class SauronCoordinator(DataUpdateCoordinator[SauronData]):
             payloads = []
             for year, month in _iter_months(start, through_date):
                 payloads.append(
-                    await self._client.async_get_monthly(subscription_id, year, month)
+                    await self._async_monthly_cached(subscription_id, year, month)
                 )
         except (SauronAuthError, SauronTransientError, SauronNoDataError, ValueError) as err:
             _LOGGER.warning("SAUR Recorder history fetch postponed: %s", err)
